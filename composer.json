@@ -1,0 +1,67 @@
+{
+    "name": "imrandevbd/laravel-ai-hub",
+    "description": "One interface for OpenAI, Gemini, Claude & Grok — with automatic cost tracking, retries, JSON recovery, and usage analytics.",
+    "type": "library",
+    "version": "1.0.0",
+    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "ai",
+        "openai",
+        "gemini",
+        "claude",
+        "grok",
+        "llm",
+        "cost-tracking",
+        "observability"
+    ],
+    "authors": [
+        {
+            "name": "Imran Dev BD",
+            "email": "me@imrandev.bd",
+            "homepage": "https://imrandev.bd",
+            "role": "Developer"
+        }
+    ],
+    "homepage": "https://github.com/imranbru99/laravel-ai-hub",
+    "support": {
+        "issues": "https://github.com/imranbru99/laravel-ai-hub/issues",
+        "source": "https://github.com/imranbru99/laravel-ai-hub"
+    },
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/http": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/database": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/queue": "^10.0|^11.0|^12.0|^13.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0|^9.0|^10.0",
+        "phpunit/phpunit": "^10.0|^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "ImranDevBd\\AiHub\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ImranDevBd\\AiHub\\Tests\\": "tests/"
+        }
+    },
+    "suggest": {
+        "filament/filament": "Required only if you use AiHubDashboardWidget"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ImranDevBd\\AiHub\\AiHubServiceProvider"
+            ],
+            "aliases": {
+                "AIHub": "ImranDevBd\\AiHub\\Facades\\AIHub"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

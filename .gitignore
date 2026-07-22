@@ -1,0 +1,9 @@
+/.idea/
+.vscode/
+/vendor/
+/node_modules/
+.phpunit.result.cache
+composer.lock
+.DS_Store
+Thumbs.db
+*.swp
