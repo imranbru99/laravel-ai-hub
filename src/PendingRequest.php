@@ -287,7 +287,7 @@ class PendingRequest
 
         // Explicit provider with failover: try that first, then rest of priority
         $priority = array_values(array_unique(array_filter(
-            (array) config('ai-hub.priority', ['openai', 'gemini', 'claude', 'grok'])
+            (array) config('ai-hub.priority', \ImranDevBd\AiHub\Support\ProviderCatalog::keys())
         )));
 
         if ($priority === []) {

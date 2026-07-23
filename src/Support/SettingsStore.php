@@ -16,7 +16,7 @@ class SettingsStore
             if ($this->usesDatabase() && Schema::hasTable('ai_hub_settings')) {
                 $row = \ImranDevBd\AiHub\Models\AiHubSetting::query()->first();
 
-                return is_array($row?->payload) ? $row->payload : $this->defaults();
+                return is_array($row?->payload) ? array_replace_recursive($this->defaults(), $row->payload) : $this->defaults();
             }
 
             $path = $this->filePath();
@@ -40,7 +40,7 @@ class SettingsStore
         $merged = array_replace_recursive($this->all(), $payload);
 
         // Never store empty api keys over existing ones unless explicitly cleared
-        foreach (['openai', 'gemini', 'claude', 'grok'] as $provider) {
+        foreach (ProviderCatalog::keys() as $provider) {
             $newKey = data_get($payload, "providers.{$provider}.api_key");
             if ($newKey === null || $newKey === '' || $newKey === '********') {
                 data_set($merged, "providers.{$provider}.api_key", data_get($this->all(), "providers.{$provider}.api_key"));
@@ -120,34 +120,33 @@ class SettingsStore
 
     public function priority(): array
     {
-        $priority = $this->get('priority', config('ai-hub.priority', ['openai', 'gemini', 'claude', 'grok']));
+        $priority = $this->get('priority', config('ai-hub.priority', ProviderCatalog::keys()));
 
         return array_values(array_unique(array_filter((array) $priority)));
     }
 
     public function popularModels(): array
     {
-        return config('ai-hub.popular_models', [
-            'openai' => ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1'],
-            'gemini' => ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro'],
-            'claude' => ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest'],
-            'grok' => ['grok-2-latest', 'grok-2', 'grok-beta'],
-        ]);
+        return config('ai-hub.popular_models', []);
     }
 
     protected function defaults(): array
     {
+        $providers = [];
+        foreach (ProviderCatalog::keys() as $provider) {
+            $providers[$provider] = [
+                'api_key' => null,
+                'model' => config("ai-hub.defaults.{$provider}"),
+                'enabled' => true,
+            ];
+        }
+
         return [
             'default' => config('ai-hub.default', 'openai'),
             'failover_enabled' => true,
-            'priority' => config('ai-hub.priority', ['openai', 'gemini', 'claude', 'grok']),
+            'priority' => config('ai-hub.priority', ProviderCatalog::keys()),
             'defaults' => config('ai-hub.defaults', []),
-            'providers' => [
-                'openai' => ['api_key' => null, 'model' => config('ai-hub.defaults.openai'), 'enabled' => true],
-                'gemini' => ['api_key' => null, 'model' => config('ai-hub.defaults.gemini'), 'enabled' => true],
-                'claude' => ['api_key' => null, 'model' => config('ai-hub.defaults.claude'), 'enabled' => true],
-                'grok' => ['api_key' => null, 'model' => config('ai-hub.defaults.grok'), 'enabled' => true],
-            ],
+            'providers' => $providers,
         ];
     }
 
@@ -168,7 +167,14 @@ class SettingsStore
         }
 
         if (empty($all['priority']) || ! is_array($all['priority'])) {
-            $all['priority'] = ['openai', 'gemini', 'claude', 'grok'];
+            $all['priority'] = ProviderCatalog::keys();
+        }
+
+        // Ensure new providers appear in priority for upgraded installs
+        foreach (ProviderCatalog::keys() as $key) {
+            if (! in_array($key, $all['priority'], true)) {
+                $all['priority'][] = $key;
+            }
         }
 
         $all['failover_enabled'] = (bool) ($all['failover_enabled'] ?? true);

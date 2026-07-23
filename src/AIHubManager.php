@@ -6,9 +6,10 @@ use ImranDevBd\AiHub\Contracts\AIProviderContract;
 use ImranDevBd\AiHub\Exceptions\AiHubException;
 use ImranDevBd\AiHub\Providers\ClaudeProvider;
 use ImranDevBd\AiHub\Providers\GeminiProvider;
-use ImranDevBd\AiHub\Providers\GrokProvider;
+use ImranDevBd\AiHub\Providers\OpenAICompatibleProvider;
 use ImranDevBd\AiHub\Providers\OpenAIProvider;
 use ImranDevBd\AiHub\Support\Analytics;
+use ImranDevBd\AiHub\Support\ProviderCatalog;
 use ImranDevBd\AiHub\Support\SettingsStore;
 
 class AIHubManager
@@ -40,6 +41,31 @@ class AIHubManager
         return $this->provider('grok')->using('grok', $model, $apiKey);
     }
 
+    public function deepseek(?string $model = null, ?string $apiKey = null): PendingRequest
+    {
+        return $this->provider('deepseek')->using('deepseek', $model, $apiKey);
+    }
+
+    public function mistral(?string $model = null, ?string $apiKey = null): PendingRequest
+    {
+        return $this->provider('mistral')->using('mistral', $model, $apiKey);
+    }
+
+    public function groq(?string $model = null, ?string $apiKey = null): PendingRequest
+    {
+        return $this->provider('groq')->using('groq', $model, $apiKey);
+    }
+
+    public function ollama(?string $model = null, ?string $apiKey = null): PendingRequest
+    {
+        return $this->provider('ollama')->using('ollama', $model, $apiKey);
+    }
+
+    public function openrouter(?string $model = null, ?string $apiKey = null): PendingRequest
+    {
+        return $this->provider('openrouter')->using('openrouter', $model, $apiKey);
+    }
+
     public function model(string $model): PendingRequest
     {
         return $this->provider()->model($model);
@@ -55,9 +81,6 @@ class AIHubManager
         return $this->provider()->apiKey($apiKey);
     }
 
-    /**
-     * Persist default provider / model / key for everyone (UI + runtime).
-     */
     public function configure(string $provider, ?string $apiKey = null, ?string $model = null, bool $makeDefault = true): array
     {
         $saved = app(SettingsStore::class)->setProvider($provider, $apiKey, $model, $makeDefault);
@@ -104,8 +127,8 @@ class AIHubManager
             'openai' => new OpenAIProvider($config),
             'gemini' => new GeminiProvider($config),
             'claude' => new ClaudeProvider($config),
-            'grok' => new GrokProvider($config),
-            default => throw new AiHubException("Unsupported AI Hub driver [{$driver}]."),
+            'grok', 'deepseek', 'mistral', 'groq', 'ollama', 'openrouter', 'openai-compatible' => new OpenAICompatibleProvider($config, $name),
+            default => throw new AiHubException("Unsupported AI Hub driver [{$driver}]. Supported: ".implode(', ', ProviderCatalog::keys())),
         };
 
         if ($overrides === []) {

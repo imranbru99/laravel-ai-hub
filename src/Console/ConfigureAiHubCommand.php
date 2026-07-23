@@ -3,13 +3,14 @@
 namespace ImranDevBd\AiHub\Console;
 
 use ImranDevBd\AiHub\Facades\AIHub;
+use ImranDevBd\AiHub\Support\ProviderCatalog;
 use ImranDevBd\AiHub\Support\SettingsStore;
 use Illuminate\Console\Command;
 
 class ConfigureAiHubCommand extends Command
 {
     protected $signature = 'ai-hub:configure
-        {provider? : openai, gemini, claude, or grok}
+        {provider? : Provider key (openai, gemini, claude, grok, deepseek, mistral, groq, ollama, openrouter)}
         {--key= : API key}
         {--model= : Default model}
         {--default : Make this the default provider}
@@ -23,13 +24,14 @@ class ConfigureAiHubCommand extends Command
             return $this->showSettings($settings);
         }
 
+        $keys = ProviderCatalog::keys();
         $provider = $this->argument('provider')
-            ?: $this->choice('Which provider?', ['openai', 'gemini', 'claude', 'grok'], 0);
+            ?: $this->choice('Which provider?', $keys, 0);
 
         $provider = strtolower((string) $provider);
 
-        if (! in_array($provider, ['openai', 'gemini', 'claude', 'grok'], true)) {
-            $this->error('Provider must be openai, gemini, claude, or grok.');
+        if (! in_array($provider, $keys, true)) {
+            $this->error('Provider must be one of: '.implode(', ', $keys));
 
             return self::FAILURE;
         }
@@ -96,7 +98,7 @@ class ConfigureAiHubCommand extends Command
         $this->newLine();
 
         $rows = [];
-        foreach (['openai', 'gemini', 'claude', 'grok'] as $provider) {
+        foreach (ProviderCatalog::keys() as $provider) {
             $rows[] = [
                 $provider,
                 data_get($masked, "providers.{$provider}.model") ?: '-',

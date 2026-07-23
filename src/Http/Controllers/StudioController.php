@@ -4,6 +4,7 @@ namespace ImranDevBd\AiHub\Http\Controllers;
 
 use ImranDevBd\AiHub\Facades\AIHub;
 use ImranDevBd\AiHub\Support\Analytics;
+use ImranDevBd\AiHub\Support\ProviderCatalog;
 use ImranDevBd\AiHub\Support\SettingsStore;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,8 +40,10 @@ class StudioController extends Controller
 
     public function saveSettings(Request $request): JsonResponse
     {
+        $rule = ProviderCatalog::validationRule();
+
         $validated = $request->validate([
-            'default' => ['required', 'in:openai,gemini,claude,grok'],
+            'default' => ['required', $rule],
             'failover_enabled' => ['sometimes', 'boolean'],
             'providers' => ['required', 'array'],
             'providers.*.api_key' => ['nullable', 'string'],
@@ -55,7 +58,7 @@ class StudioController extends Controller
             'providers' => [],
         ];
 
-        foreach (['openai', 'gemini', 'claude', 'grok'] as $provider) {
+        foreach (ProviderCatalog::keys() as $provider) {
             $row = $validated['providers'][$provider] ?? [];
             $model = $row['model'] ?? null;
             $payload['providers'][$provider] = [
@@ -81,15 +84,17 @@ class StudioController extends Controller
 
     public function savePriority(Request $request): JsonResponse
     {
+        $rule = ProviderCatalog::validationRule();
+
         $validated = $request->validate([
             'priority' => ['required', 'array', 'min:1'],
-            'priority.*' => ['required', 'in:openai,gemini,claude,grok'],
+            'priority.*' => ['required', $rule],
             'failover_enabled' => ['sometimes', 'boolean'],
-            'default' => ['sometimes', 'in:openai,gemini,claude,grok'],
+            'default' => ['sometimes', $rule],
         ]);
 
         $priority = array_values(array_unique($validated['priority']));
-        foreach (['openai', 'gemini', 'claude', 'grok'] as $p) {
+        foreach (ProviderCatalog::keys() as $p) {
             if (! in_array($p, $priority, true)) {
                 $priority[] = $p;
             }
@@ -120,7 +125,7 @@ class StudioController extends Controller
     public function test(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'provider' => ['required', 'in:openai,gemini,claude,grok'],
+            'provider' => ['required', ProviderCatalog::validationRule()],
             'model' => ['nullable', 'string', 'max:120'],
             'api_key' => ['nullable', 'string'],
             'prompt' => ['nullable', 'string', 'max:500'],
@@ -176,20 +181,15 @@ class StudioController extends Controller
     protected function bootPayload(): array
     {
         $masked = $this->settings->masked();
-        $priority = $masked['priority'] ?? ['openai', 'gemini', 'claude', 'grok'];
+        $priority = $masked['priority'] ?? ProviderCatalog::keys();
 
         return [
             'settings' => $masked,
             'popular' => $this->settings->popularModels(),
             'priority' => $priority,
             'failover_enabled' => (bool) ($masked['failover_enabled'] ?? true),
-            'providers' => ['openai', 'gemini', 'claude', 'grok'],
-            'labels' => [
-                'openai' => 'OpenAI',
-                'gemini' => 'Gemini',
-                'claude' => 'Claude',
-                'grok' => 'Grok',
-            ],
+            'providers' => ProviderCatalog::keys(),
+            'labels' => ProviderCatalog::labels(),
         ];
     }
 }

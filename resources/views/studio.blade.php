@@ -102,19 +102,19 @@
 
             <div class="mb-6">
                 <p class="mb-2 text-[11px] font-medium uppercase tracking-wider text-slate-500">Default provider</p>
-                <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                     <template x-for="p in providers" :key="'def-'+p">
                         <button type="button" @click="defaultProvider=p"
                                 class="rounded-xl border px-3 py-3 text-left transition"
-                                :class="defaultProvider===p ? 'border-accent/50 bg-accent/10 shadow-[0_0_40px_-12px_rgba(45,212,191,.45)]' : 'border-white/10 hover:border-white/20'">
+                                :class="defaultProvider===p ? 'border-accent/50 bg-accent/10' : 'border-white/10 hover:border-white/20'">
                             <p class="text-sm font-semibold text-white" x-text="labels[p]"></p>
-                            <p class="mt-0.5 font-mono text-[10px] text-slate-500" x-text="form[p].model || '—'"></p>
+                            <p class="mt-0.5 truncate font-mono text-[10px] text-slate-500" x-text="form[p].model || '—'"></p>
                         </button>
                     </template>
                 </div>
             </div>
 
-            <div class="grid gap-4 lg:grid-cols-2">
+            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <template x-for="p in providers" :key="'card-'+p">
                     <div class="rounded-2xl border border-white/10 bg-ink-950/40 p-5 transition"
                          :class="defaultProvider===p && 'ring-1 ring-accent/40'">
@@ -322,7 +322,7 @@
 
 <script>
 function aiHubStudio(boot) {
-    const providers = boot.providers || ['openai','gemini','claude','grok'];
+    const providers = boot.providers || ['openai','gemini','claude','grok','deepseek','mistral','groq','ollama','openrouter'];
     const popular = boot.popular || {};
     const settings = boot.settings || {};
     const labels = boot.labels || {};

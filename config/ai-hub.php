@@ -14,7 +14,10 @@ return [
     | Provider priority (failover order — #1 tried first)
     |--------------------------------------------------------------------------
     */
-    'priority' => ['openai', 'gemini', 'claude', 'grok'],
+    'priority' => [
+        'openai', 'gemini', 'claude', 'grok',
+        'deepseek', 'mistral', 'groq', 'ollama', 'openrouter',
+    ],
 
     'failover_enabled' => env('AI_HUB_FAILOVER', true),
 
@@ -28,6 +31,11 @@ return [
         'gemini' => env('AI_HUB_GEMINI_MODEL', 'gemini-2.0-flash'),
         'claude' => env('AI_HUB_CLAUDE_MODEL', 'claude-sonnet-4-20250514'),
         'grok' => env('AI_HUB_GROK_MODEL', 'grok-2-latest'),
+        'deepseek' => env('AI_HUB_DEEPSEEK_MODEL', 'deepseek-chat'),
+        'mistral' => env('AI_HUB_MISTRAL_MODEL', 'mistral-small-latest'),
+        'groq' => env('AI_HUB_GROQ_MODEL', 'llama-3.3-70b-versatile'),
+        'ollama' => env('AI_HUB_OLLAMA_MODEL', 'llama3.2'),
+        'openrouter' => env('AI_HUB_OPENROUTER_MODEL', 'openai/gpt-4o-mini'),
     ],
 
     /*
@@ -56,6 +64,11 @@ return [
         'gemini' => ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro'],
         'claude' => ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest', 'claude-3-opus-latest'],
         'grok' => ['grok-2-latest', 'grok-2', 'grok-beta'],
+        'deepseek' => ['deepseek-chat', 'deepseek-reasoner', 'deepseek-coder'],
+        'mistral' => ['mistral-small-latest', 'mistral-medium-latest', 'mistral-large-latest', 'codestral-latest', 'open-mistral-nemo'],
+        'groq' => ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'],
+        'ollama' => ['llama3.2', 'llama3.1', 'mistral', 'qwen2.5', 'phi3', 'codellama', 'deepseek-r1'],
+        'openrouter' => ['openai/gpt-4o-mini', 'google/gemini-2.0-flash-001', 'anthropic/claude-3.5-sonnet', 'deepseek/deepseek-chat', 'meta-llama/llama-3.3-70b-instruct'],
     ],
 
     /*
@@ -89,10 +102,45 @@ return [
         ],
 
         'grok' => [
-            'driver' => 'grok',
+            'driver' => 'openai-compatible',
             'api_key' => env('GROK_API_KEY', env('XAI_API_KEY')),
             'base_url' => env('GROK_BASE_URL', 'https://api.x.ai/v1'),
             'timeout' => (int) env('AI_HUB_GROK_TIMEOUT', 60),
+        ],
+
+        'deepseek' => [
+            'driver' => 'openai-compatible',
+            'api_key' => env('DEEPSEEK_API_KEY'),
+            'base_url' => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com/v1'),
+            'timeout' => (int) env('AI_HUB_DEEPSEEK_TIMEOUT', 60),
+        ],
+
+        'mistral' => [
+            'driver' => 'openai-compatible',
+            'api_key' => env('MISTRAL_API_KEY'),
+            'base_url' => env('MISTRAL_BASE_URL', 'https://api.mistral.ai/v1'),
+            'timeout' => (int) env('AI_HUB_MISTRAL_TIMEOUT', 60),
+        ],
+
+        'groq' => [
+            'driver' => 'openai-compatible',
+            'api_key' => env('GROQ_API_KEY'),
+            'base_url' => env('GROQ_BASE_URL', 'https://api.groq.com/openai/v1'),
+            'timeout' => (int) env('AI_HUB_GROQ_TIMEOUT', 60),
+        ],
+
+        'ollama' => [
+            'driver' => 'openai-compatible',
+            'api_key' => env('OLLAMA_API_KEY', 'ollama'),
+            'base_url' => env('OLLAMA_BASE_URL', 'http://127.0.0.1:11434/v1'),
+            'timeout' => (int) env('AI_HUB_OLLAMA_TIMEOUT', 120),
+        ],
+
+        'openrouter' => [
+            'driver' => 'openai-compatible',
+            'api_key' => env('OPENROUTER_API_KEY'),
+            'base_url' => env('OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1'),
+            'timeout' => (int) env('AI_HUB_OPENROUTER_TIMEOUT', 60),
         ],
 
     ],
@@ -166,6 +214,33 @@ return [
             'grok-2-latest' => ['input' => 2.00, 'output' => 10.00],
             'grok-2' => ['input' => 2.00, 'output' => 10.00],
             'grok-beta' => ['input' => 5.00, 'output' => 15.00],
+        ],
+        'deepseek' => [
+            'deepseek-chat' => ['input' => 0.27, 'output' => 1.10],
+            'deepseek-reasoner' => ['input' => 0.55, 'output' => 2.19],
+            'deepseek-coder' => ['input' => 0.27, 'output' => 1.10],
+        ],
+        'mistral' => [
+            'mistral-small-latest' => ['input' => 0.10, 'output' => 0.30],
+            'mistral-medium-latest' => ['input' => 0.40, 'output' => 2.00],
+            'mistral-large-latest' => ['input' => 2.00, 'output' => 6.00],
+            'codestral-latest' => ['input' => 0.30, 'output' => 0.90],
+        ],
+        'groq' => [
+            'llama-3.3-70b-versatile' => ['input' => 0.59, 'output' => 0.79],
+            'llama-3.1-8b-instant' => ['input' => 0.05, 'output' => 0.08],
+            'mixtral-8x7b-32768' => ['input' => 0.24, 'output' => 0.24],
+        ],
+        'ollama' => [
+            // local — treat as free for cost calc
+            'llama3.2' => ['input' => 0.0, 'output' => 0.0],
+            'llama3.1' => ['input' => 0.0, 'output' => 0.0],
+            'mistral' => ['input' => 0.0, 'output' => 0.0],
+        ],
+        'openrouter' => [
+            // varies by routed model — rough defaults
+            'openai/gpt-4o-mini' => ['input' => 0.15, 'output' => 0.60],
+            'deepseek/deepseek-chat' => ['input' => 0.27, 'output' => 1.10],
         ],
     ],
 

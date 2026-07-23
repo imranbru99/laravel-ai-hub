@@ -1,8 +1,7 @@
 {
     "name": "imrandevbd/laravel-ai-hub",
-    "description": "One interface for OpenAI, Gemini, Claude & Grok — with automatic cost tracking, retries, JSON recovery, and usage analytics.",
+    "description": "Premium multi-provider Laravel AI SDK — OpenAI, Gemini, Claude, Grok, DeepSeek, Mistral, Groq, Ollama & OpenRouter with failover, cost tracking, JSON recovery, and a visual studio UI.",
     "type": "library",
-    "version": "1.0.0",
     "license": "MIT",
     "keywords": [
         "laravel",
@@ -10,10 +9,19 @@
         "openai",
         "gemini",
         "claude",
+        "anthropic",
         "grok",
+        "xai",
+        "deepseek",
+        "mistral",
+        "groq",
+        "ollama",
+        "openrouter",
         "llm",
+        "failover",
         "cost-tracking",
-        "observability"
+        "observability",
+        "embeddings"
     ],
     "authors": [
         {
