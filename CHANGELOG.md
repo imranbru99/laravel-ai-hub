@@ -2,6 +2,15 @@
 
 All notable changes to **Laravel AI Hub** are documented here.
 
+## [1.1.1] — 2026-08-15
+
+### Fixed
+- Fixed model select dropdown initialization in Studio UI (`/ai-hub`) by populating options directly via Blade rather than template loops inside `<select>` tags.
+
+### Added
+- Added multi-middleware parsing (comma-separated strings and arrays) in `AiHubServiceProvider` to easily protect `/ai-hub` with authentication, roles, and gates via `.env` or config.
+- Documented role & gate access control in `README.md`.
+
 ## [1.1.0] — 2026-07-23
 
 ### Added
