@@ -64,7 +64,7 @@ php artisan migrate
 ```env
 AI_HUB_PROVIDER=openai
 AI_HUB_FAILOVER=true
-AI_HUB_MIDDLEWARE=auth   # protect /ai-hub in production
+AI_HUB_MIDDLEWARE="auth,role:admin"   # or "auth,can:access-ai-hub" to protect /ai-hub
 
 OPENAI_API_KEY=sk-...
 GEMINI_API_KEY=...
@@ -225,15 +225,64 @@ database/migrations/
 
 ---
 
-## Security
+## Security & Access Control
 
-Protect `/ai-hub` in production:
+By default, `/ai-hub` uses the `web` middleware group. **Always protect `/ai-hub` from guests in production.**
+
+### 1. Quick setup via `.env`
+
+You can supply one or multiple comma-separated middlewares directly in your `.env` file:
 
 ```env
-AI_HUB_MIDDLEWARE=auth
+# Require authentication
+AI_HUB_MIDDLEWARE="auth"
+
+# Or require authentication + role (e.g. Spatie Permission)
+AI_HUB_MIDDLEWARE="auth,role:admin|developer"
+
+# Or require authentication + Laravel Gate
+AI_HUB_MIDDLEWARE="auth,can:access-ai-hub"
 ```
 
-Prefer the visual UI for keys on shared hosts; keep `.env` out of git.
+### 2. Role & Gate protection via `config/ai-hub.php`
+
+After publishing the config (`php artisan vendor:publish --tag=ai-hub-config`), configure the `middleware` array in `config/ai-hub.php`:
+
+```php
+'settings' => [
+    'ui_enabled' => env('AI_HUB_UI', true),
+    'route_prefix' => env('AI_HUB_PATH', 'ai-hub'),
+
+    // Restrict access to authenticated users with specific roles
+    'middleware' => [
+        'web',
+        'auth',                      // 1. Blocks guests & redirects to /login
+        'can:access-ai-hub',         // 2. Authorizes specific users/roles
+        // 'role:admin|developer',   // Or Spatie role middleware
+    ],
+
+    'database' => env('AI_HUB_SETTINGS_DB', true),
+],
+```
+
+#### Defining the Gate in `app/Providers/AppServiceProvider.php`:
+
+```php
+use App\Models\User;
+use Illuminate\Support\Facades\Gate;
+
+public function boot(): void
+{
+    Gate::define('access-ai-hub', function (User $user) {
+        return in_array($user->role, ['admin', 'developer']);
+    });
+}
+```
+
+- **Guests**: Visiting `/ai-hub` will redirect them to `/login`.
+- **Unauthorized Users**: Will receive a `403 Forbidden` response.
+- **Admins & Developers**: Can access the dashboard normally.
+- **Tip**: Prefer the visual studio for setting keys in production; keep sensitive API keys out of `.env` and git.
 
 ---
 

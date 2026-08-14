@@ -103,64 +103,65 @@
             <div class="mb-6">
                 <p class="mb-2 text-[11px] font-medium uppercase tracking-wider text-slate-500">Default provider</p>
                 <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                    <template x-for="p in providers" :key="'def-'+p">
-                        <button type="button" @click="defaultProvider=p"
+                    @foreach($boot['providers'] as $p)
+                        <button type="button" @click="defaultProvider='{{ $p }}'"
                                 class="rounded-xl border px-3 py-3 text-left transition"
-                                :class="defaultProvider===p ? 'border-accent/50 bg-accent/10' : 'border-white/10 hover:border-white/20'">
-                            <p class="text-sm font-semibold text-white" x-text="labels[p]"></p>
-                            <p class="mt-0.5 truncate font-mono text-[10px] text-slate-500" x-text="form[p].model || '—'"></p>
+                                :class="defaultProvider==='{{ $p }}' ? 'border-accent/50 bg-accent/10' : 'border-white/10 hover:border-white/20'">
+                            <p class="text-sm font-semibold text-white">{{ $boot['labels'][$p] ?? ucfirst($p) }}</p>
+                            <p class="mt-0.5 truncate font-mono text-[10px] text-slate-500" x-text="form['{{ $p }}']?.model || '—'"></p>
                         </button>
-                    </template>
+                    @endforeach
                 </div>
             </div>
 
             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <template x-for="p in providers" :key="'card-'+p">
+                @foreach($boot['providers'] as $p)
                     <div class="rounded-2xl border border-white/10 bg-ink-950/40 p-5 transition"
-                         :class="defaultProvider===p && 'ring-1 ring-accent/40'">
+                         :class="defaultProvider==='{{ $p }}' && 'ring-1 ring-accent/40'">
                         <div class="mb-4 flex items-center justify-between gap-2">
                             <div class="flex items-center gap-3">
-                                <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-xs font-bold text-accent-soft"
-                                      x-text="labels[p].slice(0,2).toUpperCase()"></span>
+                                <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-xs font-bold text-accent-soft">
+                                    {{ strtoupper(substr($boot['labels'][$p] ?? $p, 0, 2)) }}
+                                </span>
                                 <div>
-                                    <h3 class="font-semibold text-white" x-text="labels[p]"></h3>
-                                    <p class="text-[11px] text-slate-500" x-text="form[p].has_key ? 'Key saved' : 'No key yet'"></p>
+                                    <h3 class="font-semibold text-white">{{ $boot['labels'][$p] ?? ucfirst($p) }}</h3>
+                                    <p class="text-[11px] text-slate-500" x-text="form['{{ $p }}']?.has_key ? 'Key saved' : 'No key yet'"></p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
                                 <label class="flex items-center gap-1.5 text-xs text-slate-400">
-                                    <input type="checkbox" x-model="form[p].enabled" class="rounded border-slate-600 bg-ink-900 text-accent">
+                                    <input type="checkbox" x-model="form['{{ $p }}'].enabled" class="rounded border-slate-600 bg-ink-900 text-accent">
                                     On
                                 </label>
-                                <button type="button" @click="testProvider(p)" :disabled="busy"
+                                <button type="button" @click="testProvider('{{ $p }}')" :disabled="busy"
                                         class="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/5 disabled:opacity-40">Test</button>
                             </div>
                         </div>
 
                         <label class="mb-3 block">
                             <span class="mb-1.5 block text-[11px] uppercase tracking-wider text-slate-500">API key</span>
-                            <input type="password" x-model="form[p].api_key"
-                                   :placeholder="form[p].has_key ? '•••• saved — paste to replace' : 'Paste API key'"
+                            <input type="password" x-model="form['{{ $p }}'].api_key"
+                                   :placeholder="form['{{ $p }}']?.has_key ? '•••• saved — paste to replace' : 'Paste API key'"
                                    class="w-full rounded-xl border border-white/10 bg-ink-900 px-3 py-2.5 text-sm text-white placeholder:text-slate-600 focus:border-accent/40 focus:outline-none focus:ring-2 focus:ring-accent/15">
                         </label>
 
                         <label class="block">
                             <span class="mb-1.5 block text-[11px] uppercase tracking-wider text-slate-500">Model</span>
                             <div class="flex flex-col gap-2 sm:flex-row">
-                                <select x-model="form[p].modelSelect"
+                                <select x-model="form['{{ $p }}'].modelSelect"
                                         class="w-full rounded-xl border border-white/10 bg-ink-900 px-3 py-2.5 text-sm text-white focus:border-accent/40 focus:outline-none">
-                                    <template x-for="m in (popular[p]||[])" :key="m">
-                                        <option :value="m" x-text="m"></option>
-                                    </template>
+                                    @foreach(($boot['popular'][$p] ?? []) as $m)
+                                        <option value="{{ $m }}">{{ $m }}</option>
+                                    @endforeach
                                     <option value="__custom">Custom…</option>
                                 </select>
-                                <input type="text" x-show="form[p].modelSelect==='__custom'" x-model="form[p].customModel"
+                                <input type="text" x-show="form['{{ $p }}'].modelSelect==='__custom'" x-model="form['{{ $p }}'].customModel"
                                        placeholder="custom-model-id"
                                        class="w-full rounded-xl border border-white/10 bg-ink-900 px-3 py-2.5 font-mono text-sm text-white focus:border-accent/40 focus:outline-none">
                             </div>
                         </label>
                     </div>
-                </template>
+                @endforeach
             </div>
 
             <div class="mt-6 flex flex-wrap gap-3">

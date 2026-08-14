@@ -56,9 +56,23 @@ class AiHubServiceProvider extends ServiceProvider
         }
 
         $prefix = config('ai-hub.settings.route_prefix', 'ai-hub');
-        $middleware = array_values(array_filter((array) config('ai-hub.settings.middleware', ['web'])));
+        $rawMiddleware = config('ai-hub.settings.middleware', ['web']);
 
-        Route::middleware($middleware)
+        $middleware = [];
+        foreach ((array) $rawMiddleware as $item) {
+            if (is_string($item)) {
+                foreach (explode(',', $item) as $part) {
+                    $trimmed = trim($part);
+                    if ($trimmed !== '') {
+                        $middleware[] = $trimmed;
+                    }
+                }
+            } elseif (! empty($item)) {
+                $middleware[] = $item;
+            }
+        }
+
+        Route::middleware(empty($middleware) ? ['web'] : array_values(array_unique($middleware)))
             ->prefix($prefix)
             ->name('ai-hub.')
             ->group(__DIR__.'/../routes/web.php');
