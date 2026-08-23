@@ -2,6 +2,18 @@
 
 All notable changes to **Laravel AI Hub** are documented here.
 
+## [1.2.1] — 2026-08-23
+
+### Added
+- **Light & Dark Theme Toggle**: Studio UI (`/ai-hub`) now includes full light and dark mode with persistent user theme preferences in `localStorage`.
+- **Inline Provider Card Save Buttons**: Direct instant `Save` button beside every provider card that highlights when credentials or models are modified.
+- **Visual Saved State Badges**: Real-time status indicators on cards and default provider pills (`Saved & ready`, `Unsaved edits`, `No key added`, `Default`).
+- **Zero-Worker Logging**: Added `after_response` lifecycle logging mode allowing request telemetry without requiring `php artisan queue:work` running.
+- **August 2026 AI Frontier Models**: Flagship models and pricing for Gemini 3.7 Flash, GPT-5.6 series, Claude 3.7 Sonnet (Hybrid thinking), Grok 4 series, DeepSeek R1, etc.
+- **Multi-tier Security & Access Control**: Built-in `AIHub::auth()` callback, `AI_HUB_ROLES`, `AI_HUB_EMAILS`, and `viewAiHub` Gate.
+- **Single-Provider API Route**: Added `POST /api/provider` for saving single-provider settings instantly.
+- **MassPrunable Support**: `AiRequestLog` now supports Laravel's automatic `model:prune` scheduler.
+
 ## [1.2.0] — 2026-08-23
 
 ### Added
