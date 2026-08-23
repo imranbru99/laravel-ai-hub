@@ -2,10 +2,13 @@
 
 namespace ImranDevBd\AiHub\Models;
 
+use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 
 class AiRequestLog extends Model
 {
+    use MassPrunable;
+
     protected $table;
 
     public function __construct(array $attributes = [])
@@ -43,4 +46,14 @@ class AiRequestLog extends Model
         'attempts' => 'integer',
         'meta' => 'array',
     ];
+
+    /**
+     * Get the prunable model query.
+     */
+    public function prunable()
+    {
+        $days = (int) config('ai-hub.logging.prune_days', 90);
+
+        return static::query()->where('created_at', '<=', now()->subDays($days));
+    }
 }

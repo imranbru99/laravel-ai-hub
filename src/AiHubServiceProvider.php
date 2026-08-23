@@ -72,7 +72,11 @@ class AiHubServiceProvider extends ServiceProvider
             }
         }
 
-        Route::middleware(empty($middleware) ? ['web'] : array_values(array_unique($middleware)))
+        if (config('ai-hub.settings.authorize_middleware', true)) {
+            $middleware[] = \ImranDevBd\AiHub\Http\Middleware\AuthorizeStudio::class;
+        }
+
+        Route::middleware(empty($middleware) ? ['web', \ImranDevBd\AiHub\Http\Middleware\AuthorizeStudio::class] : array_values(array_unique($middleware)))
             ->prefix($prefix)
             ->name('ai-hub.')
             ->group(__DIR__.'/../routes/web.php');

@@ -24,6 +24,8 @@ use ImranDevBd\AiHub\Support\Analytics;
  * @method static array configure(string $provider, ?string $apiKey = null, ?string $model = null, bool $makeDefault = true)
  * @method static \ImranDevBd\AiHub\Support\Analytics analytics()
  * @method static \ImranDevBd\AiHub\Support\SettingsStore settings()
+ * @method static void auth(\Closure $callback)
+ * @method static bool check(mixed $request)
  *
  * @see \ImranDevBd\AiHub\AIHubManager
  */

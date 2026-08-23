@@ -82,6 +82,51 @@ class StudioController extends Controller
         ]);
     }
 
+    public function saveProvider(Request $request): JsonResponse
+    {
+        $rule = ProviderCatalog::validationRule();
+
+        $validated = $request->validate([
+            'provider' => ['required', $rule],
+            'api_key' => ['nullable', 'string'],
+            'model' => ['nullable', 'string', 'max:120'],
+            'enabled' => ['sometimes', 'boolean'],
+            'make_default' => ['sometimes', 'boolean'],
+        ]);
+
+        $provider = $validated['provider'];
+        $model = $validated['model'] ?? null;
+        $enabled = array_key_exists('enabled', $validated) ? (bool) $validated['enabled'] : true;
+
+        $payload = [
+            'providers' => [
+                $provider => [
+                    'api_key' => $validated['api_key'] ?? null,
+                    'model' => $model,
+                    'enabled' => $enabled,
+                ],
+            ],
+        ];
+
+        if (! empty($model)) {
+            $payload['defaults'][$provider] = $model;
+        }
+
+        if (! empty($validated['make_default'])) {
+            $payload['default'] = $provider;
+        }
+
+        $this->settings->save($payload);
+        $this->settings->applyToConfig();
+        AIHub::getFacadeRoot()->forget();
+
+        return response()->json([
+            'success' => true,
+            'message' => ProviderCatalog::label($provider).' settings saved.',
+            'data' => $this->bootPayload(),
+        ]);
+    }
+
     public function savePriority(Request $request): JsonResponse
     {
         $rule = ProviderCatalog::validationRule();

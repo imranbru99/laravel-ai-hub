@@ -161,4 +161,33 @@ class AIHubManager
     {
         $this->drivers[$name] = $provider;
     }
+
+    /**
+     * The callback that should be used to authenticate AI Hub users.
+     */
+    protected static ?\Closure $authCallback = null;
+
+    /**
+     * Set the authorization callback for AI Hub Studio.
+     */
+    public static function auth(\Closure $callback): void
+    {
+        static::$authCallback = $callback;
+    }
+
+    /**
+     * Determine if an authorization callback has been registered.
+     */
+    public static function hasAuthCallback(): bool
+    {
+        return static::$authCallback !== null;
+    }
+
+    /**
+     * Determine if the given request can access the AI Hub Studio.
+     */
+    public static function check($request): bool
+    {
+        return static::$authCallback !== null ? (bool) call_user_func(static::$authCallback, $request) : false;
+    }
 }

@@ -38,7 +38,7 @@ class Analytics
             ->get();
     }
 
-    public function latencyPercentiles(string $provider = null, ?Carbon $from = null, ?Carbon $to = null): array
+    public function latencyPercentiles(?string $provider = null, ?Carbon $from = null, ?Carbon $to = null): array
     {
         $latencies = $this->baseQuery($from, $to)
             ->when($provider, fn ($q) => $q->where('provider', $provider))

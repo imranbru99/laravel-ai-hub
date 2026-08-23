@@ -478,12 +478,23 @@ class PendingRequest
             'request_meta' => $this->meta,
         ]);
 
-        if (config('ai-hub.logging.async', true)) {
+        $async = config('ai-hub.logging.async', 'after_response');
+
+        // Mode 1: Dedicated Queue Worker (e.g. redis/database queue workers)
+        if ($async === 'queue' || ($async === true && ! config('ai-hub.logging.after_response', true))) {
             TrackAiUsageJob::dispatch($payload)->onQueue(config('ai-hub.logging.queue', 'default'));
 
             return;
         }
 
+        // Mode 2: After Response Execution (Default — zero queue workers required, zero latency for user)
+        if ($async === 'after_response' || config('ai-hub.logging.after_response', true)) {
+            TrackAiUsageJob::dispatchAfterResponse($payload);
+
+            return;
+        }
+
+        // Mode 3: Direct Synchronous write
         TrackAiUsageJob::dispatchSync($payload);
     }
 }
