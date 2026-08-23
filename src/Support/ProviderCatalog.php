@@ -21,6 +21,10 @@ class ProviderCatalog
             'groq' => [],
             'ollama' => [],
             'openrouter' => [],
+            'azure' => [],
+            'together' => [],
+            'fireworks' => [],
+            'perplexity' => [],
         ]));
     }
 
@@ -39,6 +43,10 @@ class ProviderCatalog
             'groq' => 'Groq',
             'ollama' => 'Ollama',
             'openrouter' => 'OpenRouter',
+            'azure' => 'Azure OpenAI',
+            'together' => 'Together',
+            'fireworks' => 'Fireworks',
+            'perplexity' => 'Perplexity',
         ];
     }
 

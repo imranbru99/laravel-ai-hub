@@ -19,21 +19,16 @@ class OpenAIProvider extends AbstractProvider
             ['role' => 'user', 'content' => (string) ($payload['prompt'] ?? '')],
         ];
 
-        $body = array_filter([
-            'model' => $model,
-            'messages' => $messages,
-            'temperature' => $payload['temperature'] ?? null,
-            'max_tokens' => $payload['max_tokens'] ?? null,
-            'response_format' => $payload['response_format'] ?? null,
-        ], fn ($v) => $v !== null);
+        $body = $this->chatBody($payload, $messages, false);
 
-        $response = $this->client()->post($this->baseUrl().'/chat/completions', $body);
+        $response = $this->client()->post($this->chatUrl((string) $model), $body);
         $response->throw();
         $json = $response->json();
 
         $content = (string) data_get($json, 'choices.0.message.content', '');
         $promptTokens = (int) data_get($json, 'usage.prompt_tokens', 0);
         $completionTokens = (int) data_get($json, 'usage.completion_tokens', 0);
+        $toolCalls = data_get($json, 'choices.0.message.tool_calls', []) ?: [];
 
         return new AiResponse(
             content: $content,
@@ -43,6 +38,7 @@ class OpenAIProvider extends AbstractProvider
             completionTokens: $completionTokens,
             totalTokens: (int) data_get($json, 'usage.total_tokens', $promptTokens + $completionTokens),
             raw: is_array($json) ? $json : [],
+            toolCalls: is_array($toolCalls) ? $toolCalls : [],
         );
     }
 
@@ -53,15 +49,11 @@ class OpenAIProvider extends AbstractProvider
             ['role' => 'user', 'content' => (string) ($payload['prompt'] ?? '')],
         ];
 
-        $body = [
-            'model' => $model,
-            'messages' => $messages,
-            'stream' => true,
-        ];
+        $body = $this->chatBody($payload, $messages, true);
 
         $response = $this->client()
             ->withOptions(['stream' => true])
-            ->post($this->baseUrl().'/chat/completions', $body);
+            ->post($this->chatUrl((string) $model), $body);
 
         $response->throw();
 
@@ -98,7 +90,7 @@ class OpenAIProvider extends AbstractProvider
         $model = $payload['model'] ?? 'text-embedding-3-small';
         $input = $payload['input'] ?? $payload['prompt'] ?? '';
 
-        $response = $this->client()->post($this->baseUrl().'/embeddings', [
+        $response = $this->client()->post($this->embeddingsUrl((string) $model), [
             'model' => $model,
             'input' => $input,
         ]);
@@ -118,6 +110,37 @@ class OpenAIProvider extends AbstractProvider
             totalTokens: (int) data_get($json, 'usage.total_tokens', 0),
             raw: is_array($json) ? $json : [],
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @param  array<int, array<string, mixed>>  $messages
+     * @return array<string, mixed>
+     */
+    protected function chatBody(array $payload, array $messages, bool $stream): array
+    {
+        $body = array_filter([
+            'model' => $payload['model'] ?? null,
+            'messages' => $messages,
+            'temperature' => $payload['temperature'] ?? null,
+            'max_tokens' => $payload['max_tokens'] ?? null,
+            'response_format' => $payload['response_format'] ?? null,
+            'tools' => $payload['tools'] ?? null,
+            'tool_choice' => $payload['tool_choice'] ?? null,
+            'stream' => $stream ? true : null,
+        ], fn ($v) => $v !== null);
+
+        return $body;
+    }
+
+    protected function chatUrl(string $model): string
+    {
+        return $this->baseUrl().'/chat/completions';
+    }
+
+    protected function embeddingsUrl(string $model): string
+    {
+        return $this->baseUrl().'/embeddings';
     }
 
     protected function client()

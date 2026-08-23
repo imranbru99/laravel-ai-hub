@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $brand['name'] ?? 'Laravel AI Hub' }}</title>
+    <script>
+        (function () {
+            try {
+                var theme = localStorage.getItem('ai_hub_theme');
+                if (theme !== 'light' && theme !== 'dark') theme = 'dark';
+                document.documentElement.classList.add(theme);
+            } catch (e) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -37,7 +48,9 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
     <style>
         [x-cloak]{display:none!important}
-        
+        html.dark { color-scheme: dark; }
+        html.light { color-scheme: light; }
+
         /* Dark mode theme */
         html.dark body {
             background:
@@ -76,6 +89,8 @@
             backdrop-filter: blur(16px);
             box-shadow: 0 4px 20px -2px rgba(0,0,0,.05);
         }
+        html.dark select option { background: #0c121c; color: #f1f5f9; }
+        html.light select option { background: #ffffff; color: #0f172a; }
 
         .scroll-thin::-webkit-scrollbar{width:6px;height:6px}
         .scroll-thin::-webkit-scrollbar-thumb{background:rgba(125,140,160,.35);border-radius:999px}
@@ -108,7 +123,7 @@
                 <div class="flex items-center gap-2">
                     <h1 class="text-xl font-bold tracking-tight sm:text-2xl" :class="theme==='dark' ? 'text-white' : 'text-slate-900'">{{ $brand['name'] }}</h1>
                     <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-                          :class="theme==='dark' ? 'bg-white/10 text-accent-soft' : 'bg-slate-100 text-teal-700 border border-teal-200'">Studio v1.2.1</span>
+                          :class="theme==='dark' ? 'bg-white/10 text-accent-soft' : 'bg-slate-100 text-teal-700 border border-teal-200'">Studio v1.3.0</span>
                 </div>
                 <p class="text-xs" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">{{ $brand['tagline'] }}</p>
             </div>
@@ -131,6 +146,7 @@
             <button type="button" @click="toggleTheme()"
                     class="flex h-9 w-9 items-center justify-center rounded-xl border transition hover:scale-105 active:scale-95"
                     :class="theme==='dark' ? 'border-white/10 bg-ink-800/80 text-amber-300 hover:bg-white/10' : 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                    :aria-pressed="theme==='light'"
                     :title="theme==='dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
                 
                 {{-- Sun Icon for Light Mode --}}
@@ -159,7 +175,7 @@
                     <h2 class="text-lg font-bold" :class="theme==='dark' ? 'text-white' : 'text-slate-900'">Provider Credentials & Models</h2>
                     <div class="mt-1 flex flex-wrap items-center gap-2 text-xs" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">
                         <span>Configured:</span>
-                        <span class="inline-flex items-center gap-1.5 font-semibold text-accent-soft">
+                        <span class="inline-flex items-center gap-1.5 font-semibold" :class="theme==='dark' ? 'text-accent-soft' : 'text-teal-700'">
                             <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
                             <span x-text="savedProvidersCount() + ' of ' + providers.length + ' ready'"></span>
                         </span>
@@ -171,7 +187,8 @@
                 <div class="flex items-center gap-3">
                     <label class="flex items-center gap-2 text-xs font-medium border px-3 py-2 rounded-xl cursor-pointer transition"
                            :class="theme==='dark' ? 'text-slate-300 bg-white/5 border-white/10 hover:bg-white/10' : 'text-slate-700 bg-slate-50 border-slate-200 hover:bg-slate-100'">
-                        <input type="checkbox" x-model="failoverEnabled" class="rounded border-slate-600 bg-ink-900 text-accent focus:ring-accent/30">
+                        <input type="checkbox" x-model="failoverEnabled" class="rounded text-accent focus:ring-accent/30"
+                               :class="theme==='dark' ? 'border-slate-600 bg-ink-900' : 'border-slate-300 bg-white'">
                         Automatic Failover
                     </label>
 
@@ -217,7 +234,7 @@
                             <div class="mt-2 flex items-center justify-between text-[10px]">
                                 <span class="truncate font-mono" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'" x-text="resolvedModel('{{ $p }}')"></span>
                                 <template x-if="defaultProvider==='{{ $p }}'">
-                                    <span class="shrink-0 font-bold uppercase tracking-wider text-accent-soft">★ Default</span>
+                                    <span class="shrink-0 font-bold uppercase tracking-wider" :class="theme==='dark' ? 'text-accent-soft' : 'text-teal-700'">★ Default</span>
                                 </template>
                             </div>
                         </button>
@@ -255,7 +272,8 @@
                                     {{-- Status Badge --}}
                                     <div class="mt-1 flex items-center gap-1.5">
                                         <template x-if="isDirty('{{ $p }}')">
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border"
+                                                  :class="theme==='dark' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-amber-50 text-amber-800 border-amber-300'">
                                                 <span class="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse"></span>
                                                 Unsaved edits
                                             </span>
@@ -279,7 +297,9 @@
 
                             <div class="flex items-center gap-2">
                                 <label class="flex items-center gap-1.5 text-xs cursor-pointer" :class="theme==='dark' ? 'text-slate-300' : 'text-slate-600'" title="Enable/Disable this provider">
-                                    <input type="checkbox" x-model="form['{{ $p }}'].enabled" class="rounded border-slate-600 bg-ink-900 text-accent">
+                                    <input type="checkbox" x-model="form['{{ $p }}'].enabled" class="rounded text-accent"
+                                           :class="theme==='dark' ? 'border-slate-600 bg-ink-900' : 'border-slate-300 bg-white'"
+                                           @change="checkDirty('{{ $p }}')">
                                     <span class="text-[11px]" x-text="form['{{ $p }}'].enabled ? 'On' : 'Off'"></span>
                                 </label>
                                 <button type="button" @click="testProvider('{{ $p }}')" :disabled="busy"
@@ -342,7 +362,7 @@
                                 </button>
                             </template>
                             <template x-if="!isDirty('{{ $p }}') && defaultProvider==='{{ $p }}'">
-                                <span class="font-bold text-[11px] text-accent-soft">Current default</span>
+                                <span class="font-bold text-[11px]" :class="theme==='dark' ? 'text-accent-soft' : 'text-teal-700'">Current default</span>
                             </template>
                         </div>
 
@@ -393,7 +413,8 @@
                 </div>
                 <label class="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"
                        :class="theme==='dark' ? 'border-white/10 bg-white/5 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'">
-                    <input type="checkbox" x-model="failoverEnabled" class="rounded border-slate-600 bg-ink-900 text-accent">
+                    <input type="checkbox" x-model="failoverEnabled" class="rounded text-accent focus:ring-accent/30"
+                           :class="theme==='dark' ? 'border-slate-600 bg-ink-900' : 'border-slate-300 bg-white'">
                     Failover enabled
                 </label>
             </div>
@@ -435,7 +456,8 @@
                                     class="rounded-lg border px-3 py-1.5 text-xs transition disabled:opacity-30"
                                     :class="theme==='dark' ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-700 hover:bg-slate-100'">↓</button>
                             <button type="button" @click="makeFirst(index)"
-                                    class="rounded-lg border border-accent/30 px-3 py-1.5 text-xs font-semibold text-accent-soft hover:bg-accent/15 transition">Make #1</button>
+                                    class="rounded-lg border px-3 py-1.5 text-xs font-semibold transition"
+                                    :class="theme==='dark' ? 'border-accent/30 text-accent-soft hover:bg-accent/15' : 'border-teal-300 text-teal-700 hover:bg-teal-50'">Make #1</button>
                         </div>
                     </div>
                 </template>
@@ -444,13 +466,123 @@
             <div class="mt-6 rounded-xl border px-4 py-3.5 font-mono text-xs flex items-center gap-2 overflow-x-auto"
                  :class="theme==='dark' ? 'border-white/10 bg-ink-900/70 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'">
                 <span class="font-bold shrink-0" :class="theme==='dark' ? 'text-slate-500' : 'text-slate-400'">Chain:</span>
-                <span class="text-accent-soft font-medium whitespace-nowrap" x-text="priority.map((p,i)=> (i+1)+'. '+labels[p]).join('  →  ')"></span>
+                <span class="font-medium whitespace-nowrap" :class="theme==='dark' ? 'text-accent-soft' : 'text-teal-700'" x-text="priority.map((p,i)=> (i+1)+'. '+labels[p]).join('  →  ')"></span>
             </div>
 
             <button type="button" @click="savePriority()" :disabled="busy"
                     class="mt-6 rounded-xl bg-accent px-6 py-3 text-sm font-bold text-ink-950 hover:bg-accent-soft disabled:opacity-40 shadow-lg shadow-accent/15">
                 Save Priority Chain
             </button>
+        </div>
+    </section>
+
+    {{-- ==================== PLAYGROUND ==================== --}}
+    <section x-show="activeTab==='playground'" class="space-y-6">
+        <div class="panel rounded-2xl p-5 sm:p-6">
+            <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
+                <div>
+                    <h2 class="text-lg font-bold" :class="theme==='dark' ? 'text-white' : 'text-slate-900'">Playground</h2>
+                    <p class="mt-1 text-sm" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">Run a live prompt against any configured provider. Failover is off so you test the provider you pick.</p>
+                </div>
+                <select x-model="playground.template" @change="loadPromptTemplate()"
+                        class="rounded-xl border px-3 py-2 text-sm"
+                        :class="theme==='dark' ? 'border-white/10 bg-ink-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'">
+                    <option value="">Load template…</option>
+                    <template x-for="tpl in prompts" :key="tpl.name">
+                        <option :value="tpl.name" x-text="tpl.name"></option>
+                    </template>
+                </select>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
+                <label class="text-xs font-semibold">
+                    <span class="mb-1.5 block uppercase tracking-wider" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">Provider</span>
+                    <select x-model="playground.provider" @change="playground.model = (popular[playground.provider] || [])[0] || ''; persistPlayground()"
+                            class="w-full rounded-xl border px-3 py-2.5 text-sm"
+                            :class="theme==='dark' ? 'border-white/10 bg-ink-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'">
+                        <template x-for="p in providers" :key="p">
+                            <option :value="p" x-text="labels[p] || p"></option>
+                        </template>
+                    </select>
+                </label>
+                <label class="text-xs font-semibold">
+                    <span class="mb-1.5 block uppercase tracking-wider" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">Model</span>
+                    <select x-model="playground.model" @change="persistPlayground()"
+                            class="w-full rounded-xl border px-3 py-2.5 text-sm"
+                            :class="theme==='dark' ? 'border-white/10 bg-ink-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'">
+                        <template x-for="m in (popular[playground.provider] || [])" :key="m">
+                            <option :value="m" x-text="m"></option>
+                        </template>
+                        <option value="__custom">Custom Model ID…</option>
+                    </select>
+                    <input x-show="playground.model==='__custom'" x-model="playground.customModel" @input="persistPlayground()"
+                           placeholder="custom-model-id" class="mt-2 w-full rounded-xl border px-3 py-2 font-mono text-sm"
+                           :class="theme==='dark' ? 'border-white/10 bg-ink-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'">
+                </label>
+                <label class="text-xs font-semibold">
+                    <span class="mb-1.5 block uppercase tracking-wider" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">Temperature</span>
+                    <input type="number" min="0" max="2" step="0.1" x-model.number="playground.temperature" @input="persistPlayground()"
+                           class="w-full rounded-xl border px-3 py-2.5 text-sm"
+                           :class="theme==='dark' ? 'border-white/10 bg-ink-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'">
+                </label>
+                <label class="text-xs font-semibold">
+                    <span class="mb-1.5 block uppercase tracking-wider" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">Max tokens</span>
+                    <input type="number" min="16" max="128000" x-model.number="playground.maxTokens" @input="persistPlayground()"
+                           class="w-full rounded-xl border px-3 py-2.5 text-sm"
+                           :class="theme==='dark' ? 'border-white/10 bg-ink-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'">
+                </label>
+            </div>
+
+            <label class="block text-xs font-semibold mb-3">
+                <span class="mb-1.5 block uppercase tracking-wider" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">System prompt (optional)</span>
+                <textarea x-model="playground.system" @input="persistPlayground()" rows="2"
+                          class="w-full rounded-xl border px-3 py-2.5 text-sm"
+                          :class="theme==='dark' ? 'border-white/10 bg-ink-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'"
+                          placeholder="You are a helpful assistant."></textarea>
+            </label>
+            <label class="block text-xs font-semibold mb-3">
+                <span class="mb-1.5 block uppercase tracking-wider" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">User message</span>
+                <textarea x-model="playground.prompt" @input="persistPlayground()" rows="5"
+                          class="w-full rounded-xl border px-3 py-2.5 text-sm"
+                          :class="theme==='dark' ? 'border-white/10 bg-ink-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'"
+                          placeholder="Ask anything…"></textarea>
+            </label>
+            <label class="block text-xs font-semibold mb-4">
+                <span class="mb-1.5 block uppercase tracking-wider" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">Image URL (optional vision)</span>
+                <input type="url" x-model="playground.image" @input="persistPlayground()"
+                       placeholder="https://example.com/photo.jpg"
+                       class="w-full rounded-xl border px-3 py-2.5 text-sm"
+                       :class="theme==='dark' ? 'border-white/10 bg-ink-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'">
+            </label>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" @click="runPlayground(false)" :disabled="busy || !playground.prompt"
+                        class="rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-ink-950 hover:bg-accent-soft disabled:opacity-40">
+                    <span x-show="!busy">Send</span>
+                    <span x-show="busy">Running…</span>
+                </button>
+                <button type="button" @click="runPlayground(true)" :disabled="busy || !playground.prompt"
+                        class="rounded-xl border px-5 py-2.5 text-sm font-semibold disabled:opacity-40"
+                        :class="theme==='dark' ? 'border-white/10 text-slate-200 hover:bg-white/10' : 'border-slate-200 text-slate-700 hover:bg-slate-100'">
+                    Stream
+                </button>
+                <button type="button" @click="saveCurrentAsTemplate()" :disabled="busy || !playground.prompt"
+                        class="rounded-xl border px-4 py-2.5 text-xs font-semibold disabled:opacity-40"
+                        :class="theme==='dark' ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-600 hover:bg-slate-100'">
+                    Save as template
+                </button>
+            </div>
+        </div>
+
+        <div class="panel rounded-2xl p-5 sm:p-6 min-h-[180px]">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-bold" :class="theme==='dark' ? 'text-white' : 'text-slate-900'">Reply</h3>
+                <p class="text-[11px] font-mono" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'"
+                   x-show="playground.meta"
+                   x-text="playground.meta ? (playground.meta.provider+' · '+playground.meta.model+' · '+(playground.meta.latency_ms||0)+'ms · $'+(Number(playground.meta.cost_usd||0).toFixed(4))+' · '+(playground.meta.total_tokens||0)+' tok') : ''"></p>
+            </div>
+            <pre class="whitespace-pre-wrap text-sm leading-relaxed font-sans" :class="theme==='dark' ? 'text-slate-200' : 'text-slate-800'"
+                 x-text="playground.reply || 'Send a prompt to see the model reply here.'"></pre>
         </div>
     </section>
 
@@ -463,6 +595,48 @@
             </div>
             <button type="button" @click="loadAnalytics()" class="rounded-xl border px-3.5 py-2 text-xs font-semibold transition"
                     :class="theme==='dark' ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-700 hover:bg-slate-100'">Refresh</button>
+        </div>
+
+        <div class="panel rounded-2xl p-5"
+             :class="budget.breached ? (theme==='dark' ? 'ring-1 ring-amber-400/40' : 'ring-1 ring-amber-400') : ''">
+            <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+                <div>
+                    <h3 class="text-sm font-bold" :class="theme==='dark' ? 'text-white' : 'text-slate-900'">Spend budget</h3>
+                    <p class="mt-1 text-xs" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">
+                        This month: <span class="font-mono" x-text="'$'+(Number(budget.month_spend||0).toFixed(4))"></span>
+                        <template x-if="budget.monthly_usd">
+                            <span> / <span class="font-mono" x-text="'$'+Number(budget.monthly_usd).toFixed(2)"></span> remaining <span class="font-mono" x-text="'$'+Number(budget.remaining||0).toFixed(4)"></span></span>
+                        </template>
+                    </p>
+                    <p x-show="budget.breached" class="mt-1 text-xs font-semibold text-amber-400" x-text="(budget.warnings||[]).map(w => w.message).join(' ')"></p>
+                </div>
+                <button type="button" @click="saveBudget()" :disabled="busy"
+                        class="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-ink-950 hover:bg-accent-soft disabled:opacity-40">Save budget</button>
+            </div>
+            <div class="grid gap-3 sm:grid-cols-3">
+                <label class="text-xs font-semibold">
+                    <span class="mb-1.5 block uppercase tracking-wider" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">Monthly USD cap</span>
+                    <input type="number" min="0" step="0.01" x-model.number="budgetForm.monthly_usd"
+                           placeholder="Unlimited"
+                           class="w-full rounded-xl border px-3 py-2 text-sm"
+                           :class="theme==='dark' ? 'border-white/10 bg-ink-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'">
+                </label>
+                <label class="text-xs font-semibold">
+                    <span class="mb-1.5 block uppercase tracking-wider" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">When exceeded</span>
+                    <select x-model="budgetForm.on_exceed"
+                            class="w-full rounded-xl border px-3 py-2 text-sm"
+                            :class="theme==='dark' ? 'border-white/10 bg-ink-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'">
+                        <option value="block">Block requests</option>
+                        <option value="warn">Warn only</option>
+                    </select>
+                </label>
+                <label class="text-xs font-semibold">
+                    <span class="mb-1.5 block uppercase tracking-wider" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">Job caps (job=usd)</span>
+                    <input type="text" x-model="budgetForm.jobCaps" placeholder="invoice-ocr=5, chat=20"
+                           class="w-full rounded-xl border px-3 py-2 text-sm"
+                           :class="theme==='dark' ? 'border-white/10 bg-ink-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'">
+                </label>
+            </div>
         </div>
 
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -500,7 +674,7 @@
                         <li>
                             <div class="mb-1.5 flex justify-between text-sm">
                                 <span class="font-medium" :class="theme==='dark' ? 'text-slate-200' : 'text-slate-800'" x-text="labels[row.provider]||row.provider"></span>
-                                <span class="font-mono text-accent-soft font-bold" x-text="'$'+Number(row.cost||0).toFixed(4)"></span>
+                <span class="font-mono font-bold" :class="theme==='dark' ? 'text-accent-soft' : 'text-teal-700'" x-text="'$'+Number(row.cost||0).toFixed(4)"></span>
                             </div>
                             <div class="h-2 overflow-hidden rounded-full" :class="theme==='dark' ? 'bg-white/5' : 'bg-slate-200'">
                                 <div class="h-full rounded-full bg-gradient-to-r from-accent to-emerald-400" :style="'width:'+costBar(row.cost)+'%'"></div>
@@ -514,7 +688,7 @@
                 <h3 class="text-sm font-bold" :class="theme==='dark' ? 'text-white' : 'text-slate-900'">Top Tracked Jobs</h3>
                 <ul class="mt-4 max-h-64 space-y-2 overflow-y-auto scroll-thin">
                     <template x-if="!(analytics.top_jobs||[]).length">
-                        <li class="text-sm text-slate-500">No job traces logged. Use <code class="text-accent-soft px-1 rounded" :class="theme==='dark' ? 'bg-white/5' : 'bg-slate-100'">->forJob('invoice')</code>.</li>
+                        <li class="text-sm text-slate-500">No job traces logged. Use <code class="px-1 rounded" :class="theme==='dark' ? 'text-accent-soft bg-white/5' : 'text-teal-700 bg-slate-100'">->forJob('invoice')</code>.</li>
                     </template>
                     <template x-for="job in (analytics.top_jobs||[])" :key="job.job">
                         <li class="flex items-center justify-between rounded-xl border px-3.5 py-2.5"
@@ -561,7 +735,7 @@
             <span class="h-2.5 w-2.5 rounded-full bg-amber-400 animate-ping"></span>
             <span class="text-sm font-bold" :class="theme==='dark' ? 'text-white' : 'text-slate-900'">
                 Unsaved changes in:
-                <span class="text-accent-soft" x-text="dirtyProviders().map(p => labels[p] || p).join(', ')"></span>
+                <span :class="theme==='dark' ? 'text-accent-soft' : 'text-teal-700'" x-text="dirtyProviders().map(p => labels[p] || p).join(', ')"></span>
             </span>
         </div>
         <div class="flex items-center gap-2">
@@ -581,7 +755,7 @@
 <footer class="relative border-t py-8 text-center text-xs transition-colors"
         :class="theme==='dark' ? 'border-white/[0.05] text-slate-500' : 'border-slate-200 text-slate-500'">
     Laravel AI Hub · Developed by
-    <a href="https://imrandev.bd/" target="_blank" class="text-accent-soft font-medium hover:underline">Imran Dev BD</a>
+    <a href="https://imrandev.bd/" target="_blank" class="font-medium hover:underline" :class="theme==='dark' ? 'text-accent-soft' : 'text-teal-700'">Imran Dev BD</a>
     · <a href="https://imrandev.bd/contact" target="_blank" class="hover:underline">Contact</a>
 </footer>
 
@@ -630,23 +804,50 @@ function aiHubStudio(boot) {
         activeTab: 'keys',
         tabs: [
             { id: 'keys', label: 'Keys & Models' },
+            { id: 'playground', label: 'Playground' },
             { id: 'priority', label: 'Priority Chain' },
             { id: 'analytics', label: 'Usage Analytics' },
         ],
         busy: false,
         toast: { show: false, message: '', type: 'ok' },
         analytics: { summary: {}, cost_by_provider: [], latency: {}, top_jobs: [], daily: [] },
+        prompts: boot.prompts || [],
+        budget: boot.budget || { month_spend: 0, monthly_usd: null, remaining: null, on_exceed: 'block', breached: false, warnings: [] },
+        budgetForm: {
+            monthly_usd: boot.budget?.monthly_usd || '',
+            on_exceed: boot.budget?.on_exceed || 'block',
+            jobCaps: Object.entries(boot.budget?.per_job || {}).map(([k,v]) => k+'='+v).join(', '),
+        },
+        playground: Object.assign({
+            provider: settings.default || providers[0],
+            model: (popular[settings.default || providers[0]] || [])[0] || '',
+            customModel: '',
+            temperature: 0.7,
+            maxTokens: 1024,
+            system: '',
+            prompt: '',
+            image: '',
+            template: '',
+            reply: '',
+            meta: null,
+        }, (function () { try { return JSON.parse(localStorage.getItem('ai_hub_playground') || '{}'); } catch (e) { return {}; } })()),
         routes: {
             settings: @json(route('ai-hub.api.settings')),
             provider: @json(route('ai-hub.api.provider')),
             priority: @json(route('ai-hub.api.priority')),
             test: @json(route('ai-hub.api.test')),
             analytics: @json(route('ai-hub.api.analytics')),
+            playground: @json(route('ai-hub.api.playground')),
+            playgroundStream: @json(route('ai-hub.api.playground.stream')),
+            budget: @json(route('ai-hub.api.budget')),
+            prompts: @json(route('ai-hub.api.prompts')),
         },
 
         init() {
             document.documentElement.classList.remove('dark', 'light');
             document.documentElement.classList.add(this.theme);
+            if (!this.playground.provider) this.playground.provider = this.defaultProvider || this.providers[0];
+            if (!this.playground.model) this.playground.model = (this.popular[this.playground.provider] || [])[0] || '';
         },
 
         toggleTheme() {
@@ -821,6 +1022,12 @@ function aiHubStudio(boot) {
                     top_jobs: data.top_jobs || [],
                     daily: data.daily || [],
                 };
+                if (data.budget) {
+                    this.budget = data.budget;
+                    this.budgetForm.monthly_usd = data.budget.monthly_usd || '';
+                    this.budgetForm.on_exceed = data.budget.on_exceed || 'block';
+                    this.budgetForm.jobCaps = Object.entries(data.budget.per_job || {}).map(([k,v]) => k+'='+v).join(', ');
+                }
             } catch (e) {
                 this.notify(e.message, 'error');
             }
@@ -844,7 +1051,9 @@ function aiHubStudio(boot) {
             
             (boot.providers || this.providers).forEach(p => {
                 const row = boot.settings?.providers?.[p] || {};
-                if (!this.form[p]) return;
+                if (!this.form[p]) {
+                    this.form[p] = { api_key: '', has_key: false, enabled: true, modelSelect: '', customModel: '', _dirty: false };
+                }
                 
                 const hasKey = !!row.has_key;
                 const enabled = row.enabled !== false;
@@ -864,6 +1073,8 @@ function aiHubStudio(boot) {
                     enabled: enabled,
                 };
             });
+            if (boot.prompts) this.prompts = boot.prompts;
+            if (boot.budget) this.budget = boot.budget;
         },
 
         async request(url, body, method = 'POST') {
@@ -886,6 +1097,151 @@ function aiHubStudio(boot) {
             this.toast = { show: true, message, type };
             clearTimeout(this._t);
             this._t = setTimeout(() => this.toast.show = false, 3600);
+        },
+
+        persistPlayground() {
+            const { reply, meta, template, ...draft } = this.playground;
+            localStorage.setItem('ai_hub_playground', JSON.stringify(draft));
+        },
+
+        playgroundModel() {
+            return this.playground.model === '__custom' ? this.playground.customModel : this.playground.model;
+        },
+
+        playgroundPayload() {
+            return {
+                provider: this.playground.provider,
+                model: this.playgroundModel() || null,
+                system: this.playground.system || null,
+                prompt: this.playground.prompt,
+                image: this.playground.image || null,
+                temperature: this.playground.temperature,
+                max_tokens: this.playground.maxTokens,
+            };
+        },
+
+        async runPlayground(stream) {
+            if (!this.playground.prompt) return;
+            this.busy = true;
+            this.playground.reply = stream ? '' : '…';
+            this.playground.meta = null;
+            this.persistPlayground();
+            try {
+                if (stream) {
+                    await this.streamPlayground();
+                } else {
+                    const data = await this.request(this.routes.playground, this.playgroundPayload());
+                    this.playground.reply = data.content || '';
+                    this.playground.meta = data;
+                }
+            } catch (e) {
+                this.playground.reply = '';
+                this.notify(e.message, 'error');
+            } finally {
+                this.busy = false;
+            }
+        },
+
+        async streamPlayground() {
+            const res = await fetch(this.routes.playgroundStream, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'text/event-stream',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify(this.playgroundPayload()),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.message || 'Stream failed');
+            }
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buf = '';
+            this.playground.reply = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+                const parts = buf.split('\n\n');
+                buf = parts.pop();
+                for (const part of parts) {
+                    const line = part.split('\n').find(l => l.startsWith('data:'));
+                    if (!line) continue;
+                    const evt = JSON.parse(line.slice(5).trim() || '{}');
+                    if (evt.error) throw new Error(evt.error);
+                    if (evt.chunk) this.playground.reply += evt.chunk;
+                    if (evt.meta) this.playground.meta = Object.assign({}, this.playground.meta || {}, evt.meta);
+                    if (evt.done) this.playground.meta = Object.assign({}, this.playground.meta || {});
+                }
+            }
+        },
+
+        loadPromptTemplate() {
+            const tpl = (this.prompts || []).find(p => p.name === this.playground.template);
+            if (!tpl) return;
+            if (tpl.provider) this.playground.provider = tpl.provider;
+            if (tpl.model) {
+                const list = this.popular[tpl.provider] || [];
+                this.playground.model = list.includes(tpl.model) ? tpl.model : '__custom';
+                this.playground.customModel = list.includes(tpl.model) ? '' : tpl.model;
+            }
+            this.playground.system = tpl.system || '';
+            this.playground.prompt = tpl.user || '';
+            this.persistPlayground();
+        },
+
+        async saveCurrentAsTemplate() {
+            const name = window.prompt('Template name', this.playground.template || 'untitled');
+            if (!name) return;
+            const next = (this.prompts || []).filter(p => p.name !== name);
+            next.push({
+                name,
+                provider: this.playground.provider,
+                model: this.playgroundModel(),
+                system: this.playground.system,
+                user: this.playground.prompt,
+            });
+            try {
+                const data = await this.request(this.routes.prompts, { prompts: next });
+                this.prompts = data.data?.prompts || next;
+                this.playground.template = name;
+                this.notify(data.message || 'Template saved.');
+            } catch (e) {
+                this.notify(e.message, 'error');
+            }
+        },
+
+        parseJobCaps() {
+            const out = {};
+            String(this.budgetForm.jobCaps || '').split(',').forEach(part => {
+                const [k, v] = part.split('=').map(s => s && s.trim());
+                if (k && v && !Number.isNaN(Number(v))) out[k] = Number(v);
+            });
+            return out;
+        },
+
+        async saveBudget() {
+            this.busy = true;
+            try {
+                const data = await this.request(this.routes.budget, {
+                    budget: {
+                        monthly_usd: this.budgetForm.monthly_usd === '' ? null : Number(this.budgetForm.monthly_usd),
+                        on_exceed: this.budgetForm.on_exceed || 'block',
+                        per_provider: this.budget.per_provider || {},
+                        per_job: this.parseJobCaps(),
+                    },
+                });
+                this.budget = data.budget || this.budget;
+                if (data.data) this.applyBoot(data.data);
+                this.notify(data.message || 'Budget saved.');
+            } catch (e) {
+                this.notify(e.message, 'error');
+            } finally {
+                this.busy = false;
+            }
         },
     };
 }

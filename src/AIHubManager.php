@@ -4,6 +4,7 @@ namespace ImranDevBd\AiHub;
 
 use ImranDevBd\AiHub\Contracts\AIProviderContract;
 use ImranDevBd\AiHub\Exceptions\AiHubException;
+use ImranDevBd\AiHub\Providers\AzureOpenAIProvider;
 use ImranDevBd\AiHub\Providers\ClaudeProvider;
 use ImranDevBd\AiHub\Providers\GeminiProvider;
 use ImranDevBd\AiHub\Providers\OpenAICompatibleProvider;
@@ -64,6 +65,72 @@ class AIHubManager
     public function openrouter(?string $model = null, ?string $apiKey = null): PendingRequest
     {
         return $this->provider('openrouter')->using('openrouter', $model, $apiKey);
+    }
+
+    public function azure(?string $model = null, ?string $apiKey = null): PendingRequest
+    {
+        return $this->provider('azure')->using('azure', $model, $apiKey);
+    }
+
+    public function together(?string $model = null, ?string $apiKey = null): PendingRequest
+    {
+        return $this->provider('together')->using('together', $model, $apiKey);
+    }
+
+    public function fireworks(?string $model = null, ?string $apiKey = null): PendingRequest
+    {
+        return $this->provider('fireworks')->using('fireworks', $model, $apiKey);
+    }
+
+    public function perplexity(?string $model = null, ?string $apiKey = null): PendingRequest
+    {
+        return $this->provider('perplexity')->using('perplexity', $model, $apiKey);
+    }
+
+    /**
+     * @param  array<string, mixed>  $vars
+     */
+    public function promptTemplate(string $name, array $vars = []): PendingRequest
+    {
+        $prompts = (array) app(SettingsStore::class)->get('prompts', []);
+        $found = null;
+        foreach ($prompts as $prompt) {
+            if (is_array($prompt) && ($prompt['name'] ?? '') === $name) {
+                $found = $prompt;
+                break;
+            }
+        }
+
+        if ($found === null) {
+            throw new AiHubException("Prompt template [{$name}] was not found.");
+        }
+
+        $request = ! empty($found['provider'])
+            ? $this->provider((string) $found['provider'])
+            : $this->provider();
+
+        if (! empty($found['model'])) {
+            $request->model((string) $found['model']);
+        }
+
+        $system = $this->interpolate((string) ($found['system'] ?? ''), $vars);
+        if ($system !== '') {
+            $request->system($system);
+        }
+
+        return $request->prompt($this->interpolate((string) ($found['user'] ?? ''), $vars));
+    }
+
+    /**
+     * @param  array<string, mixed>  $vars
+     */
+    protected function interpolate(string $template, array $vars): string
+    {
+        return preg_replace_callback('/\{([a-zA-Z0-9_.-]+)\}/', function ($match) use ($vars) {
+            $key = $match[1];
+
+            return array_key_exists($key, $vars) ? (string) $vars[$key] : $match[0];
+        }, $template) ?? $template;
     }
 
     public function model(string $model): PendingRequest
@@ -127,7 +194,8 @@ class AIHubManager
             'openai' => new OpenAIProvider($config),
             'gemini' => new GeminiProvider($config),
             'claude' => new ClaudeProvider($config),
-            'grok', 'deepseek', 'mistral', 'groq', 'ollama', 'openrouter', 'openai-compatible' => new OpenAICompatibleProvider($config, $name),
+            'azure' => new AzureOpenAIProvider($config),
+            'grok', 'deepseek', 'mistral', 'groq', 'ollama', 'openrouter', 'together', 'fireworks', 'perplexity', 'openai-compatible' => new OpenAICompatibleProvider($config, $name),
             default => throw new AiHubException("Unsupported AI Hub driver [{$driver}]. Supported: ".implode(', ', ProviderCatalog::keys())),
         };
 

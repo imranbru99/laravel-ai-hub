@@ -8,9 +8,9 @@
   <a href="https://imrandev.bd"><img src="https://img.shields.io/badge/by-Imran%20Dev%20BD-14b8a6.svg?style=flat-square" alt="Imran Dev BD"></a>
 </p>
 
-**One unified interface. Nine AI providers. Real-time cost & telemetry observability. Failover priority chaining.**
+**One unified interface. Thirteen AI providers. Playground, budgets, tools, vision, and cost telemetry.**
 
-Swap **OpenAI**, **Gemini**, **Claude**, **Grok**, **DeepSeek**, **Mistral**, **Groq**, **Ollama**, or **OpenRouter** via config or a visual Studio UI — every request is cost-tracked in USD, retried with exponential backoff, JSON-repaired automatically, and logged asynchronously with zero user latency (no queue workers required).
+Swap **OpenAI**, **Gemini**, **Claude**, **Grok**, **DeepSeek**, **Mistral**, **Groq**, **Ollama**, **OpenRouter**, **Azure OpenAI**, **Together**, **Fireworks**, or **Perplexity** via config or a visual Studio UI — every request is cost-tracked in USD, retried with exponential backoff, JSON-repaired automatically, and logged asynchronously with zero user latency (no queue workers required).
 
 Built by **[Imran Dev BD](https://imrandev.bd/)** · Laravel **10–13** · PHP **8.2+**
 
@@ -27,10 +27,12 @@ composer require imrandevbd/laravel-ai-hub
 
 | Advantage | Benefit |
 |---|---|
-| **One Unified API** | Identical fluent chain across OpenAI, Gemini, Claude, Grok, DeepSeek, Mistral, Groq, Ollama & OpenRouter |
+| **One Unified API** | Identical fluent chain across 13 providers including Azure OpenAI, Together, Fireworks & Perplexity |
 | **August 2026 Models** | Out-of-the-box support for Gemini 3.7 Flash, GPT-5.6 series, Claude 3.7 Sonnet, Grok 4 series & DeepSeek R1 |
-| **Interactive Studio UI** | `/ai-hub` — Per-card instant save buttons, saved status badges, change detection & telemetry |
+| **Interactive Studio UI** | `/ai-hub` — Playground, light/dark theme, per-card save, budgets, prompt templates |
 | **Automatic Failover** | `#1 → #2 → #3…` chain fallback when rate-limited or unavailable |
+| **Tools, vision & cache** | Function tools, image inputs, named prompt templates, optional response cache |
+| **Spend budgets** | Monthly / provider / job USD caps with block or warn |
 | **Zero-Worker Logging** | `after_response` logging stores analytics immediately without requiring `php artisan queue:work` |
 | **JSON Auto-Repair** | Depth-aware parser recovers malformed or truncated JSON from LLM responses automatically |
 | **Cost & Health Analytics** | Real-time USD spend calculation, failure %, latency percentiles (p50/p95/p99) & top jobs |
@@ -42,12 +44,13 @@ composer require imrandevbd/laravel-ai-hub
 
 | Feature | Description |
 |---|---|
-| **Multi-Provider Hub** | OpenAI · Gemini · Claude · Grok · DeepSeek · Mistral · Groq · Ollama · OpenRouter |
-| **Visual Studio** | `/ai-hub` with per-provider save buttons, live change tracking & floating action bar |
+| **Multi-Provider Hub** | OpenAI · Gemini · Claude · Grok · DeepSeek · Mistral · Groq · Ollama · OpenRouter · Azure · Together · Fireworks · Perplexity |
+| **Visual Studio** | `/ai-hub` with Playground, light/dark mode, per-provider save, budgets & templates |
 | **Failover Priority Chain** | Customize and drag-and-drop provider priority order (`#1` tried first) |
 | **JSON Recovery** | Strips markdown code blocks and repairs broken/unclosed braces automatically |
 | **Retries & Backoff** | Exponential backoff with jitter on 429 and 5xx errors |
 | **Real-time Cost Tracking** | Precise USD pricing calculation per 1M tokens from built-in pricing tables |
+| **Spend budgets** | Monthly, per-provider, and per-job USD caps (`block` or `warn`) |
 | **Zero-Latency Logging** | Logs saved automatically via `after_response` lifecycle or background queue |
 | **Telemetry Dashboard** | 30-day spend, failure rate, JSON recovery rate, latency p95, daily cost chart |
 | **Filament Widget** | Optional ready-to-use widget for Filament v3/v4 admin panels |
@@ -64,6 +67,23 @@ composer require imrandevbd/laravel-ai-hub
 php artisan vendor:publish --tag=ai-hub-config
 php artisan migrate
 ```
+
+### Upgrading
+
+```bash
+composer update imrandevbd/laravel-ai-hub
+php artisan config:clear
+php artisan cache:clear
+php artisan view:clear
+```
+
+Studio (`/ai-hub`) reads the package model catalog automatically after an upgrade. Re-publishing config is optional:
+
+```bash
+php artisan vendor:publish --tag=ai-hub-config --force
+```
+
+`--force` overwrites a previously published `config/ai-hub.php`. Skip it if you customized that file — new models still appear in the dropdown.
 
 ### Environment Configuration (`.env`)
 
@@ -86,7 +106,14 @@ DEEPSEEK_API_KEY=sk-...
 MISTRAL_API_KEY=...
 GROQ_API_KEY=gsk_...
 OPENROUTER_API_KEY=sk-or-...
+AZURE_OPENAI_API_KEY=...
+AZURE_OPENAI_ENDPOINT=https://YOUR-RESOURCE.openai.azure.com
+TOGETHER_API_KEY=...
+FIREWORKS_API_KEY=...
+PERPLEXITY_API_KEY=...
 # OLLAMA_BASE_URL=http://127.0.0.1:11434/v1
+# AI_HUB_BUDGET_MONTHLY=50
+# AI_HUB_BUDGET_ON_EXCEED=block
 ```
 
 > **Tip:** You can leave `.env` empty and configure all keys and models visually via the **`/ai-hub`** Studio UI. Keys are stored encrypted in the database.
@@ -112,14 +139,17 @@ Visit **`/ai-hub`** in your browser after installing.
 ```
 
 ### Studio UI Highlights:
-1. **Per-Card Instant Save**: Directly beside the API key and model selection on each provider card, an instant **`Save`** button lights up as soon as you type or make a change.
-2. **Clear Saved Status Badges**:
+1. **Light & Dark Theme**: Header sun/moon toggle with preference saved in `localStorage`.
+2. **Per-Card Instant Save**: Directly beside the API key and model selection on each provider card, an instant **`Save`** button lights up as soon as you type or make a change.
+3. **Clear Saved Status Badges**:
    - `● Saved & ready` (Green badge) — Configured credentials stored in database.
    - `● Unsaved edits` (Amber badge) — Modified inputs waiting to be saved.
    - `No key added` (Slate badge) — Unconfigured provider.
    - `★ Default` (Cyan badge) — Active `#1` priority default provider.
-3. **Floating Quick-Save Bar**: Automatically slides up if unsaved changes exist anywhere on the page, letting you save all modified providers with one click without scrolling.
-4. **Interactive Connection Tester**: Test your API keys and models with live round-trip latency and token cost diagnostics.
+4. **Floating Quick-Save Bar**: Automatically slides up if unsaved changes exist anywhere on the page, letting you save all modified providers with one click without scrolling.
+5. **Interactive Connection Tester**: Test your API keys and models with live round-trip latency and token cost diagnostics.
+6. **Playground**: Send or stream a prompt against any provider, attach an image URL, and save named templates.
+7. **Spend budgets**: Set a monthly USD cap on the Analytics tab (`block` requests or `warn` only).
 
 ### CLI Alternative (`ai-hub:configure`)
 
@@ -151,6 +181,10 @@ php artisan ai-hub:configure --show
 | **Groq (LPU Speed)** | `groq` | `llama-3.3-70b-versatile`, `deepseek-r1-distill-llama-70b`, `deepseek-r1-distill-qwen-32b`, `qwen-2.5-coder-32b`, `llama-3.1-8b-instant` |
 | **Ollama (Local)** | `ollama` | `llama3.3`, `deepseek-r1`, `qwen2.5-coder`, `qwen2.5`, `mistral-small`, `phi4`, `gemma2`, `llama3.2-vision` |
 | **OpenRouter** | `openrouter` | `google/gemini-3.7-flash`, `anthropic/claude-3.7-sonnet`, `openai/gpt-5`, `openai/o3-mini`, `deepseek/deepseek-r1` |
+| **Azure OpenAI** | `azure` | Deployment name as model (`gpt-4o`, `gpt-5-mini`, `o3-mini`). Set `AZURE_OPENAI_ENDPOINT` |
+| **Together** | `together` | `meta-llama/Llama-3.3-70B-Instruct-Turbo`, `deepseek-ai/DeepSeek-R1` |
+| **Fireworks** | `fireworks` | `accounts/fireworks/models/llama-v3p3-70b-instruct`, `accounts/fireworks/models/deepseek-r1` |
+| **Perplexity** | `perplexity` | `sonar-pro`, `sonar`, `sonar-reasoning-pro` |
 
 ---
 
@@ -206,6 +240,46 @@ foreach (AIHub::openai()->prompt('Write a technical essay')->stream() as $chunk)
 }
 ```
 
+### Tools, vision, cache, and prompt templates
+
+```php
+// Vision
+$response = AIHub::openai()
+    ->prompt('Describe this image')
+    ->image('https://example.com/photo.jpg')
+    ->send();
+
+// Function tools (OpenAI-style schema; mapped for Claude & Gemini)
+$response = AIHub::openai()->tools([[
+    'type' => 'function',
+    'function' => [
+        'name' => 'get_weather',
+        'description' => 'Get the weather for a city',
+        'parameters' => [
+            'type' => 'object',
+            'properties' => [
+                'city' => ['type' => 'string'],
+            ],
+            'required' => ['city'],
+        ],
+    ],
+]])->prompt('Weather in Dhaka?')->send();
+
+$calls = $response->toolCalls; // run the tool, then continue with messages()
+
+// Response cache (hits log type=cache_hit at $0)
+$response = AIHub::gemini()->prompt($faq)->cache(3600)->send();
+
+// Named templates saved in Studio Playground ({ticket} is interpolated)
+$response = AIHub::promptTemplate('support.reply', ['ticket' => $body])->send();
+
+// New providers
+AIHub::azure('gpt-4o')->prompt('Hello from Azure')->send();
+AIHub::together()->prompt('Hello from Together')->send();
+AIHub::fireworks()->prompt('Hello from Fireworks')->send();
+AIHub::perplexity('sonar-pro')->prompt('What shipped this week?')->send();
+```
+
 ### Vector Embeddings
 
 ```php
@@ -254,6 +328,10 @@ Configure provider priority in `/ai-hub` or in `config/ai-hub.php`:
     'groq',        // #7
     'ollama',      // #8
     'openrouter',  // #9
+    'azure',       // #10
+    'together',    // #11
+    'fireworks',   // #12
+    'perplexity',  // #13
 ],
 'failover_enabled' => true,
 ```

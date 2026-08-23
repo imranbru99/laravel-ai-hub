@@ -4,12 +4,14 @@ namespace ImranDevBd\AiHub\Http\Controllers;
 
 use ImranDevBd\AiHub\Facades\AIHub;
 use ImranDevBd\AiHub\Support\Analytics;
+use ImranDevBd\AiHub\Support\BudgetGuard;
 use ImranDevBd\AiHub\Support\ProviderCatalog;
 use ImranDevBd\AiHub\Support\SettingsStore;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 class StudioController extends Controller
@@ -25,7 +27,7 @@ class StudioController extends Controller
             'boot' => $this->bootPayload(),
             'brand' => [
                 'name' => 'Laravel AI Hub',
-                'tagline' => 'Providers · keys · models · priority · analytics',
+                'tagline' => 'Providers · keys · playground · priority · analytics',
             ],
         ]);
     }
@@ -220,7 +222,163 @@ class StudioController extends Controller
             'latency' => $this->analytics->latencyPercentiles(null, $from),
             'top_jobs' => $this->analytics->topJobs(8, $from),
             'daily' => $this->analytics->dailyCost(30),
+            'budget' => app(BudgetGuard::class)->snapshot(),
         ]);
+    }
+
+    public function playground(Request $request): JsonResponse
+    {
+        $validated = $this->validatePlayground($request);
+
+        try {
+            $response = $this->playgroundPending($validated)->send();
+
+            return response()->json([
+                'success' => true,
+                'content' => $response->content,
+                'provider' => $response->provider,
+                'model' => $response->model,
+                'latency_ms' => $response->latencyMs,
+                'prompt_tokens' => $response->promptTokens,
+                'completion_tokens' => $response->completionTokens,
+                'total_tokens' => $response->totalTokens,
+                'cost_usd' => $response->costUsd,
+                'tool_calls' => $response->toolCalls,
+            ]);
+        } catch (Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function playgroundStream(Request $request): StreamedResponse
+    {
+        $validated = $this->validatePlayground($request);
+
+        return response()->stream(function () use ($validated) {
+            try {
+                $pending = $this->playgroundPending($validated);
+                echo 'data: '.json_encode([
+                    'meta' => [
+                        'provider' => $validated['provider'],
+                        'model' => $validated['model'] ?? null,
+                    ],
+                ])."\n\n";
+                $this->flushStream();
+
+                foreach ($pending->stream() as $chunk) {
+                    echo 'data: '.json_encode(['chunk' => $chunk])."\n\n";
+                    $this->flushStream();
+                }
+
+                echo 'data: '.json_encode(['done' => true])."\n\n";
+                $this->flushStream();
+            } catch (Throwable $e) {
+                echo 'data: '.json_encode(['error' => $e->getMessage()])."\n\n";
+                $this->flushStream();
+            }
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    public function saveBudget(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'budget' => ['required', 'array'],
+            'budget.monthly_usd' => ['nullable', 'numeric', 'min:0'],
+            'budget.on_exceed' => ['required', 'in:block,warn'],
+            'budget.per_provider' => ['nullable', 'array'],
+            'budget.per_provider.*' => ['nullable', 'numeric', 'min:0'],
+            'budget.per_job' => ['nullable', 'array'],
+            'budget.per_job.*' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $this->settings->save(['budget' => $validated['budget']]);
+        $this->settings->applyToConfig();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Spend budget saved.',
+            'data' => $this->bootPayload(),
+            'budget' => app(BudgetGuard::class)->snapshot(),
+        ]);
+    }
+
+    public function savePrompts(Request $request): JsonResponse
+    {
+        $rule = ProviderCatalog::validationRule();
+        $validated = $request->validate([
+            'prompts' => ['present', 'array'],
+            'prompts.*.name' => ['required', 'string', 'max:80'],
+            'prompts.*.provider' => ['nullable', $rule],
+            'prompts.*.model' => ['nullable', 'string', 'max:120'],
+            'prompts.*.system' => ['nullable', 'string', 'max:8000'],
+            'prompts.*.user' => ['required', 'string', 'max:20000'],
+        ]);
+
+        $this->settings->save(['prompts' => array_values($validated['prompts'])]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Prompt templates saved.',
+            'data' => $this->bootPayload(),
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function validatePlayground(Request $request): array
+    {
+        return $request->validate([
+            'provider' => ['required', ProviderCatalog::validationRule()],
+            'model' => ['nullable', 'string', 'max:120'],
+            'system' => ['nullable', 'string', 'max:8000'],
+            'prompt' => ['required', 'string', 'max:20000'],
+            'image' => ['nullable', 'string', 'max:4000'],
+            'temperature' => ['nullable', 'numeric', 'min:0', 'max:2'],
+            'max_tokens' => ['nullable', 'integer', 'min:1', 'max:128000'],
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    protected function playgroundPending(array $validated): \ImranDevBd\AiHub\PendingRequest
+    {
+        $this->settings->applyToConfig();
+        $pending = AIHub::provider($validated['provider'])->withoutFailover()->forJob('studio-playground');
+
+        if (! empty($validated['model'])) {
+            $pending->model($validated['model']);
+        }
+        if (! empty($validated['system'])) {
+            $pending->system($validated['system']);
+        }
+        if (! empty($validated['image'])) {
+            $pending->image($validated['image']);
+        }
+        if (isset($validated['temperature'])) {
+            $pending->temperature((float) $validated['temperature']);
+        }
+        if (isset($validated['max_tokens'])) {
+            $pending->maxTokens((int) $validated['max_tokens']);
+        }
+
+        return $pending->prompt($validated['prompt']);
+    }
+
+    protected function flushStream(): void
+    {
+        if (function_exists('ob_get_level') && ob_get_level() > 0) {
+            @ob_flush();
+        }
+        @flush();
     }
 
     protected function bootPayload(): array
@@ -235,6 +393,8 @@ class StudioController extends Controller
             'failover_enabled' => (bool) ($masked['failover_enabled'] ?? true),
             'providers' => ProviderCatalog::keys(),
             'labels' => ProviderCatalog::labels(),
+            'prompts' => $masked['prompts'] ?? [],
+            'budget' => app(BudgetGuard::class)->snapshot(),
         ];
     }
 }

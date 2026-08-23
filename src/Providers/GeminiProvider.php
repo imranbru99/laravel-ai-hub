@@ -26,11 +26,17 @@ class GeminiProvider extends AbstractProvider
             'contents' => $contents,
         ];
 
-        if (isset($payload['temperature']) || isset($payload['max_tokens'])) {
-            $body['generationConfig'] = array_filter([
-                'temperature' => $payload['temperature'] ?? null,
-                'maxOutputTokens' => $payload['max_tokens'] ?? null,
-            ], fn ($v) => $v !== null);
+        $generation = array_filter([
+            'temperature' => $payload['temperature'] ?? null,
+            'maxOutputTokens' => $payload['max_tokens'] ?? null,
+        ], fn ($v) => $v !== null);
+
+        if ($generation !== []) {
+            $body['generationConfig'] = $generation;
+        }
+
+        if (! empty($payload['tools'])) {
+            $body['tools'] = [['functionDeclarations' => $this->mapTools($payload['tools'])]];
         }
 
         $url = sprintf(
@@ -44,7 +50,21 @@ class GeminiProvider extends AbstractProvider
         $response->throw();
         $json = $response->json();
 
-        $content = (string) data_get($json, 'candidates.0.content.parts.0.text', '');
+        $parts = collect(data_get($json, 'candidates.0.content.parts', []));
+        $content = $parts->pluck('text')->filter()->implode('');
+        $toolCalls = $parts
+            ->filter(fn ($part) => isset($part['functionCall']))
+            ->map(fn ($part) => [
+                'id' => null,
+                'type' => 'function',
+                'function' => [
+                    'name' => data_get($part, 'functionCall.name', ''),
+                    'arguments' => json_encode(data_get($part, 'functionCall.args', new \stdClass), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                ],
+            ])
+            ->values()
+            ->all();
+
         $promptTokens = (int) data_get($json, 'usageMetadata.promptTokenCount', $this->estimateTokens($prompt));
         $completionTokens = (int) data_get($json, 'usageMetadata.candidatesTokenCount', $this->estimateTokens($content));
         $totalTokens = (int) data_get($json, 'usageMetadata.totalTokenCount', $promptTokens + $completionTokens);
@@ -57,12 +77,12 @@ class GeminiProvider extends AbstractProvider
             completionTokens: $completionTokens,
             totalTokens: $totalTokens,
             raw: is_array($json) ? $json : [],
+            toolCalls: $toolCalls,
         );
     }
 
     public function stream(array $payload): \Generator
     {
-        // Gemini streaming via streamGenerateContent — yield full chunks as text deltas
         $model = $payload['model'] ?? config('ai-hub.defaults.gemini');
         $prompt = (string) ($payload['prompt'] ?? '');
         $messages = $payload['messages'] ?? null;
@@ -70,6 +90,11 @@ class GeminiProvider extends AbstractProvider
         $contents = $messages
             ? $this->mapMessages($messages)
             : [['role' => 'user', 'parts' => [['text' => $prompt]]]];
+
+        $body = ['contents' => $contents];
+        if (! empty($payload['tools'])) {
+            $body['tools'] = [['functionDeclarations' => $this->mapTools($payload['tools'])]];
+        }
 
         $url = sprintf(
             '%s/models/%s:streamGenerateContent?alt=sse&key=%s',
@@ -80,7 +105,7 @@ class GeminiProvider extends AbstractProvider
 
         $response = $this->http()
             ->withOptions(['stream' => true])
-            ->post($url, ['contents' => $contents]);
+            ->post($url, $body);
 
         $response->throw();
         $bodyStream = $response->toPsrResponse()->getBody();
@@ -144,17 +169,73 @@ class GeminiProvider extends AbstractProvider
         foreach ($messages as $message) {
             $role = ($message['role'] ?? 'user') === 'assistant' ? 'model' : 'user';
             if (($message['role'] ?? '') === 'system') {
-                // Gemini: fold system into user preamble
                 $mapped[] = [
                     'role' => 'user',
-                    'parts' => [['text' => (string) ($message['content'] ?? '')]],
+                    'parts' => $this->mapParts($message['content'] ?? ''),
                 ];
                 continue;
             }
             $mapped[] = [
                 'role' => $role,
-                'parts' => [['text' => (string) ($message['content'] ?? '')]],
+                'parts' => $this->mapParts($message['content'] ?? ''),
             ];
+        }
+
+        return $mapped;
+    }
+
+    protected function mapParts(mixed $content): array
+    {
+        if (! is_array($content)) {
+            return [['text' => (string) $content]];
+        }
+
+        $parts = [];
+        foreach ($content as $part) {
+            if (! is_array($part)) {
+                $parts[] = ['text' => (string) $part];
+                continue;
+            }
+            if (($part['type'] ?? '') === 'image_url') {
+                $url = (string) data_get($part, 'image_url.url', $part['url'] ?? '');
+                $parts[] = $this->imagePart($url);
+                continue;
+            }
+            $parts[] = ['text' => (string) ($part['text'] ?? '')];
+        }
+
+        return $parts === [] ? [['text' => '']] : $parts;
+    }
+
+    protected function imagePart(string $url): array
+    {
+        if (preg_match('#^data:(image/[^;]+);base64,(.+)$#', $url, $m)) {
+            return [
+                'inline_data' => [
+                    'mime_type' => $m[1],
+                    'data' => $m[2],
+                ],
+            ];
+        }
+
+        return [
+            'file_data' => [
+                'mime_type' => 'image/jpeg',
+                'file_uri' => $url,
+            ],
+        ];
+    }
+
+    protected function mapTools(array $tools): array
+    {
+        $mapped = [];
+        foreach ($tools as $tool) {
+            $fn = $tool['function'] ?? $tool;
+            $mapped[] = array_filter([
+                'name' => $fn['name'] ?? null,
+                'description' => $fn['description'] ?? null,
+                'parameters' => $fn['parameters'] ?? null,
+            ]);
         }
 
         return $mapped;

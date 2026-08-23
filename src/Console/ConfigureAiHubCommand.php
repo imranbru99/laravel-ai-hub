@@ -10,7 +10,7 @@ use Illuminate\Console\Command;
 class ConfigureAiHubCommand extends Command
 {
     protected $signature = 'ai-hub:configure
-        {provider? : Provider key (openai, gemini, claude, grok, deepseek, mistral, groq, ollama, openrouter)}
+        {provider? : Provider key (openai, gemini, claude, grok, deepseek, mistral, groq, ollama, openrouter, azure, together, fireworks, perplexity)}
         {--key= : API key}
         {--model= : Default model}
         {--default : Make this the default provider}

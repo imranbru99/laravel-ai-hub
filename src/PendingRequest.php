@@ -7,9 +7,11 @@ use ImranDevBd\AiHub\Data\AiResponse;
 use ImranDevBd\AiHub\Data\EmbeddingResponse;
 use ImranDevBd\AiHub\Exceptions\AiHubException;
 use ImranDevBd\AiHub\Jobs\TrackAiUsageJob;
+use ImranDevBd\AiHub\Support\BudgetGuard;
 use ImranDevBd\AiHub\Support\CostCalculator;
 use ImranDevBd\AiHub\Support\JsonRecovery;
 use ImranDevBd\AiHub\Support\RetryHandler;
+use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 class PendingRequest
@@ -28,6 +30,10 @@ class PendingRequest
     protected ?string $baseUrlOverride = null;
     protected bool $providerLocked = false;
     protected ?bool $failover = null;
+    protected array $tools = [];
+    protected mixed $toolChoice = null;
+    protected array $images = [];
+    protected ?int $cacheTtl = null;
 
     public function __construct(
         protected AIHubManager $manager,
@@ -146,6 +152,49 @@ class PendingRequest
         return $this;
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>  $tools  OpenAI-style tool definitions
+     */
+    public function tools(array $tools): self
+    {
+        $this->tools = $tools;
+
+        return $this;
+    }
+
+    public function toolChoice(string|array $choice): self
+    {
+        $this->toolChoice = $choice;
+
+        return $this;
+    }
+
+    public function image(string $urlOrBase64): self
+    {
+        $this->images[] = $urlOrBase64;
+
+        return $this;
+    }
+
+    /**
+     * @param  array<int, string>  $urls
+     */
+    public function images(array $urls): self
+    {
+        foreach ($urls as $url) {
+            $this->image((string) $url);
+        }
+
+        return $this;
+    }
+
+    public function cache(?int $ttl = 3600): self
+    {
+        $this->cacheTtl = $ttl ?? 3600;
+
+        return $this;
+    }
+
     public function recoverJson(bool $enabled = true): self
     {
         $this->recoverJson = $enabled;
@@ -193,6 +242,12 @@ class PendingRequest
             $jsonRecovered = false;
 
             try {
+                $this->guardBudget($providerName);
+                $cached = $this->cachedResponse($model, $payload);
+                if ($cached) {
+                    return $cached;
+                }
+
                 [$response, $attempts] = $retry->run(fn () => $provider->complete($payload));
 
                 $content = $response->content;
@@ -231,8 +286,10 @@ class PendingRequest
                         'priority_rank' => $index + 1,
                         'failover_tried' => $tried,
                     ]),
+                    toolCalls: $response->toolCalls,
                 );
 
+                $this->remember($result, $model, $payload);
                 $this->log($result);
 
                 return $result;
@@ -255,7 +312,10 @@ class PendingRequest
                     ]),
                 ));
 
-                // try next provider in priority chain
+                if ($e instanceof AiHubException && str_contains($e->getMessage(), 'cap of')) {
+                    throw $e;
+                }
+
                 continue;
             }
         }
@@ -268,8 +328,6 @@ class PendingRequest
     }
 
     /**
-     * Build ordered provider chain based on priority settings.
-     *
      * @return array<int, string>
      */
     protected function resolveChain(): array
@@ -280,12 +338,10 @@ class PendingRequest
             return [$this->providerName];
         }
 
-        // Explicit provider() without failover → single
         if ($this->providerLocked && $this->failover === false) {
             return [$this->providerName];
         }
 
-        // Explicit provider with failover: try that first, then rest of priority
         $priority = array_values(array_unique(array_filter(
             (array) config('ai-hub.priority', \ImranDevBd\AiHub\Support\ProviderCatalog::keys())
         )));
@@ -317,10 +373,13 @@ class PendingRequest
 
     public function embed(string|array|null $input = null): EmbeddingResponse
     {
+        $this->guardBudget($this->providerName);
+
         $provider = $this->resolveProvider();
         $model = $this->model ?: match ($this->providerName) {
             'openai' => 'text-embedding-3-small',
             'gemini' => 'text-embedding-004',
+            'azure' => 'text-embedding-3-small',
             default => $this->defaultModel(),
         };
 
@@ -385,11 +444,20 @@ class PendingRequest
      */
     public function stream(): \Generator
     {
+        $this->guardBudget($this->providerName);
+
         $provider = $this->resolveProvider();
         $model = $this->model ?: $this->defaultModel();
         $payload = $this->buildPayload($model);
         $started = microtime(true);
         $buffer = '';
+
+        $cached = $this->cachedResponse($model, $payload);
+        if ($cached) {
+            yield $cached->content;
+
+            return;
+        }
 
         try {
             foreach ($provider->stream($payload) as $chunk) {
@@ -397,17 +465,24 @@ class PendingRequest
                 yield $chunk;
             }
 
-            $this->log(new AiResponse(
+            $calculator = CostCalculator::fromConfig();
+            $promptTokens = $this->estimate($this->prompt ?? '');
+            $completionTokens = $this->estimate($buffer);
+            $result = new AiResponse(
                 content: $buffer,
                 provider: $provider->name(),
                 model: $model,
-                promptTokens: $this->estimate($this->prompt ?? ''),
-                completionTokens: $this->estimate($buffer),
-                totalTokens: $this->estimate(($this->prompt ?? '').$buffer),
+                promptTokens: $promptTokens,
+                completionTokens: $completionTokens,
+                totalTokens: $promptTokens + $completionTokens,
+                costUsd: $calculator->calculate($provider->name(), $model, $promptTokens, $completionTokens),
                 latencyMs: round((microtime(true) - $started) * 1000, 2),
                 success: true,
                 meta: array_merge($this->meta, ['type' => 'stream']),
-            ));
+            );
+
+            $this->remember($result, $model, $payload);
+            $this->log($result);
         } catch (Throwable $e) {
             $this->log(new AiResponse(
                 content: $buffer,
@@ -432,22 +507,80 @@ class PendingRequest
             'max_tokens' => $this->maxTokens,
         ];
 
-        if ($this->messages !== []) {
-            $payload['messages'] = $this->messages;
-        } elseif ($this->prompt !== null) {
-            $payload['messages'] = [
+        $messages = $this->messages;
+        if ($messages === [] && $this->prompt !== null) {
+            $messages = [
                 ['role' => 'user', 'content' => $this->prompt],
             ];
         }
 
-        if ($this->forceJsonObject && $this->providerName === 'openai') {
+        if ($this->images !== []) {
+            $messages = $this->attachImages($messages);
+        }
+
+        if ($messages !== []) {
+            $payload['messages'] = $messages;
+        }
+
+        if ($this->tools !== []) {
+            $payload['tools'] = $this->tools;
+        }
+
+        if ($this->toolChoice !== null) {
+            $payload['tool_choice'] = $this->toolChoice;
+        }
+
+        if ($this->forceJsonObject && in_array($this->providerName, ['openai', 'azure', 'openrouter', 'together', 'fireworks'], true)) {
             $payload['response_format'] = ['type' => 'json_object'];
         }
 
         return array_filter($payload, fn ($v) => $v !== null);
     }
 
-    protected function resolveProvider(): \ImranDevBd\AiHub\Contracts\AIProviderContract
+    /**
+     * @param  array<int, array<string, mixed>>  $messages
+     * @return array<int, array<string, mixed>>
+     */
+    protected function attachImages(array $messages): array
+    {
+        if ($messages === []) {
+            $messages[] = ['role' => 'user', 'content' => $this->prompt ?? ''];
+        }
+
+        for ($i = count($messages) - 1; $i >= 0; $i--) {
+            if (($messages[$i]['role'] ?? '') !== 'user') {
+                continue;
+            }
+
+            $content = $messages[$i]['content'] ?? '';
+            $parts = is_array($content) ? $content : [['type' => 'text', 'text' => (string) $content]];
+            foreach ($this->images as $image) {
+                $parts[] = $this->imagePart((string) $image);
+            }
+            $messages[$i]['content'] = $parts;
+            break;
+        }
+
+        return $messages;
+    }
+
+    /**
+     * @return array{type: string, image_url: array{url: string}}
+     */
+    protected function imagePart(string $image): array
+    {
+        $url = $image;
+        if (! str_starts_with($image, 'http') && ! str_starts_with($image, 'data:') && preg_match('/^[A-Za-z0-9+\/=]{80,}$/', $image)) {
+            $url = 'data:image/jpeg;base64,'.$image;
+        }
+
+        return [
+            'type' => 'image_url',
+            'image_url' => ['url' => $url],
+        ];
+    }
+
+    protected function resolveProvider(): AIProviderContract
     {
         $overrides = array_filter([
             'api_key' => $this->apiKeyOverride,
@@ -467,6 +600,65 @@ class PendingRequest
         return max(0, (int) ceil(strlen($text) / 4));
     }
 
+    protected function guardBudget(string $provider): void
+    {
+        $warnings = app(BudgetGuard::class)->assert($provider, $this->jobTrace);
+        if ($warnings !== []) {
+            $this->meta['budget_warnings'] = $warnings;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function cachedResponse(string $model, array $payload): ?AiResponse
+    {
+        if (! $this->cacheTtl) {
+            return null;
+        }
+
+        $hit = Cache::get($this->cacheKey($model, $payload));
+        if (! is_array($hit)) {
+            return null;
+        }
+
+        $result = AiResponse::fromArray(array_merge($hit, [
+            'cost_usd' => 0,
+            'meta' => array_merge($hit['meta'] ?? [], $this->meta, [
+                'type' => 'cache_hit',
+                'cache' => true,
+            ]),
+        ]));
+
+        $this->log($result);
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function remember(AiResponse $response, string $model, array $payload): void
+    {
+        if (! $this->cacheTtl || ! $response->success) {
+            return;
+        }
+
+        Cache::put($this->cacheKey($model, $payload), $response->toArray(), $this->cacheTtl);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function cacheKey(string $model, array $payload): string
+    {
+        return 'ai-hub.cache.'.sha1(json_encode([
+            $this->providerName,
+            $model,
+            $payload,
+        ]));
+    }
+
     protected function log(AiResponse $response): void
     {
         if (! config('ai-hub.logging.enabled', true)) {
@@ -475,26 +667,23 @@ class PendingRequest
 
         $payload = array_merge($response->toArray(), [
             'job' => $this->jobTrace,
-            'request_meta' => $this->meta,
+            'request_meta' => $response->meta ?: $this->meta,
         ]);
 
         $async = config('ai-hub.logging.async', 'after_response');
 
-        // Mode 1: Dedicated Queue Worker (e.g. redis/database queue workers)
         if ($async === 'queue' || ($async === true && ! config('ai-hub.logging.after_response', true))) {
             TrackAiUsageJob::dispatch($payload)->onQueue(config('ai-hub.logging.queue', 'default'));
 
             return;
         }
 
-        // Mode 2: After Response Execution (Default — zero queue workers required, zero latency for user)
         if ($async === 'after_response' || config('ai-hub.logging.after_response', true)) {
             TrackAiUsageJob::dispatchAfterResponse($payload);
 
             return;
         }
 
-        // Mode 3: Direct Synchronous write
         TrackAiUsageJob::dispatchSync($payload);
     }
 }

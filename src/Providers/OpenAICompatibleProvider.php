@@ -6,7 +6,7 @@ use ImranDevBd\AiHub\Data\AiResponse;
 use ImranDevBd\AiHub\Data\EmbeddingResponse;
 
 /**
- * Thin OpenAI-compatible wrapper used by DeepSeek, Mistral, Groq, Ollama, OpenRouter, Grok.
+ * Thin OpenAI-compatible wrapper used by DeepSeek, Mistral, Groq, Ollama, OpenRouter, Grok, Together, Fireworks, Perplexity.
  */
 class OpenAICompatibleProvider extends OpenAIProvider
 {
@@ -43,6 +43,7 @@ class OpenAICompatibleProvider extends OpenAIProvider
             error: $response->error,
             raw: $response->raw,
             meta: $response->meta,
+            toolCalls: $response->toolCalls,
         );
     }
 

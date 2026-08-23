@@ -17,6 +17,7 @@ return [
     'priority' => [
         'openai', 'gemini', 'claude', 'grok',
         'deepseek', 'mistral', 'groq', 'ollama', 'openrouter',
+        'azure', 'together', 'fireworks', 'perplexity',
     ],
 
     'failover_enabled' => env('AI_HUB_FAILOVER', true),
@@ -36,6 +37,10 @@ return [
         'groq' => env('AI_HUB_GROQ_MODEL', 'llama-3.3-70b-versatile'),
         'ollama' => env('AI_HUB_OLLAMA_MODEL', 'llama3.3'),
         'openrouter' => env('AI_HUB_OPENROUTER_MODEL', 'google/gemini-3.7-flash'),
+        'azure' => env('AI_HUB_AZURE_MODEL', 'gpt-4o'),
+        'together' => env('AI_HUB_TOGETHER_MODEL', 'meta-llama/Llama-3.3-70B-Instruct-Turbo'),
+        'fireworks' => env('AI_HUB_FIREWORKS_MODEL', 'accounts/fireworks/models/llama-v3p3-70b-instruct'),
+        'perplexity' => env('AI_HUB_PERPLEXITY_MODEL', 'sonar-pro'),
     ],
 
     /*
@@ -197,6 +202,34 @@ return [
             'mistralai/mistral-large-2411',
             'qwen/qwen-2.5-coder-32b-instruct',
         ],
+        'azure' => [
+            'gpt-5',
+            'gpt-5-mini',
+            'gpt-4o',
+            'gpt-4o-mini',
+            'gpt-4.1',
+            'o3-mini',
+            'o1',
+        ],
+        'together' => [
+            'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+            'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo',
+            'Qwen/Qwen2.5-72B-Instruct-Turbo',
+            'deepseek-ai/DeepSeek-R1',
+            'deepseek-ai/DeepSeek-V3',
+        ],
+        'fireworks' => [
+            'accounts/fireworks/models/llama-v3p3-70b-instruct',
+            'accounts/fireworks/models/llama-v3p1-405b-instruct',
+            'accounts/fireworks/models/qwen2p5-72b-instruct',
+            'accounts/fireworks/models/deepseek-r1',
+        ],
+        'perplexity' => [
+            'sonar-pro',
+            'sonar',
+            'sonar-reasoning-pro',
+            'sonar-reasoning',
+        ],
     ],
 
     /*
@@ -269,6 +302,35 @@ return [
             'api_key' => env('OPENROUTER_API_KEY'),
             'base_url' => env('OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1'),
             'timeout' => (int) env('AI_HUB_OPENROUTER_TIMEOUT', 60),
+        ],
+
+        'azure' => [
+            'driver' => 'azure',
+            'api_key' => env('AZURE_OPENAI_API_KEY'),
+            'base_url' => env('AZURE_OPENAI_ENDPOINT'),
+            'api_version' => env('AZURE_OPENAI_API_VERSION', '2024-10-21'),
+            'timeout' => (int) env('AI_HUB_AZURE_TIMEOUT', 60),
+        ],
+
+        'together' => [
+            'driver' => 'openai-compatible',
+            'api_key' => env('TOGETHER_API_KEY'),
+            'base_url' => env('TOGETHER_BASE_URL', 'https://api.together.xyz/v1'),
+            'timeout' => (int) env('AI_HUB_TOGETHER_TIMEOUT', 60),
+        ],
+
+        'fireworks' => [
+            'driver' => 'openai-compatible',
+            'api_key' => env('FIREWORKS_API_KEY'),
+            'base_url' => env('FIREWORKS_BASE_URL', 'https://api.fireworks.ai/inference/v1'),
+            'timeout' => (int) env('AI_HUB_FIREWORKS_TIMEOUT', 60),
+        ],
+
+        'perplexity' => [
+            'driver' => 'openai-compatible',
+            'api_key' => env('PERPLEXITY_API_KEY'),
+            'base_url' => env('PERPLEXITY_BASE_URL', 'https://api.perplexity.ai'),
+            'timeout' => (int) env('AI_HUB_PERPLEXITY_TIMEOUT', 60),
         ],
 
     ],
@@ -462,6 +524,46 @@ return [
             'mistralai/mistral-large-2411' => ['input' => 2.00, 'output' => 6.00],
             'qwen/qwen-2.5-coder-32b-instruct' => ['input' => 0.15, 'output' => 0.60],
         ],
+        'azure' => [
+            'gpt-5' => ['input' => 5.00, 'output' => 30.00],
+            'gpt-5-mini' => ['input' => 0.25, 'output' => 1.50],
+            'gpt-4o' => ['input' => 2.50, 'output' => 10.00],
+            'gpt-4o-mini' => ['input' => 0.15, 'output' => 0.60],
+            'gpt-4.1' => ['input' => 2.00, 'output' => 8.00],
+            'o3-mini' => ['input' => 1.10, 'output' => 4.40],
+            'o1' => ['input' => 15.00, 'output' => 60.00],
+        ],
+        'together' => [
+            'meta-llama/Llama-3.3-70B-Instruct-Turbo' => ['input' => 0.88, 'output' => 0.88],
+            'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo' => ['input' => 3.50, 'output' => 3.50],
+            'Qwen/Qwen2.5-72B-Instruct-Turbo' => ['input' => 1.20, 'output' => 1.20],
+            'deepseek-ai/DeepSeek-R1' => ['input' => 3.00, 'output' => 7.00],
+            'deepseek-ai/DeepSeek-V3' => ['input' => 1.25, 'output' => 1.25],
+        ],
+        'fireworks' => [
+            'accounts/fireworks/models/llama-v3p3-70b-instruct' => ['input' => 0.90, 'output' => 0.90],
+            'accounts/fireworks/models/llama-v3p1-405b-instruct' => ['input' => 3.00, 'output' => 3.00],
+            'accounts/fireworks/models/qwen2p5-72b-instruct' => ['input' => 0.90, 'output' => 0.90],
+            'accounts/fireworks/models/deepseek-r1' => ['input' => 3.00, 'output' => 8.00],
+        ],
+        'perplexity' => [
+            'sonar-pro' => ['input' => 3.00, 'output' => 15.00],
+            'sonar' => ['input' => 1.00, 'output' => 1.00],
+            'sonar-reasoning-pro' => ['input' => 2.00, 'output' => 8.00],
+            'sonar-reasoning' => ['input' => 1.00, 'output' => 5.00],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Spend budgets
+    |--------------------------------------------------------------------------
+    */
+    'budget' => [
+        'monthly_usd' => env('AI_HUB_BUDGET_MONTHLY'),
+        'on_exceed' => env('AI_HUB_BUDGET_ON_EXCEED', 'block'),
+        'per_provider' => [],
+        'per_job' => [],
     ],
 
     /*

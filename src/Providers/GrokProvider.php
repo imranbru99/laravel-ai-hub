@@ -36,6 +36,7 @@ class GrokProvider extends OpenAIProvider
             error: $response->error,
             raw: $response->raw,
             meta: $response->meta,
+            toolCalls: $response->toolCalls,
         );
     }
 

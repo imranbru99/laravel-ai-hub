@@ -47,6 +47,10 @@ class SettingsStore
             }
         }
 
+        if (array_key_exists('prompts', $payload)) {
+            $merged['prompts'] = array_values($payload['prompts']);
+        }
+
         if ($this->usesDatabase() && Schema::hasTable('ai_hub_settings')) {
             \ImranDevBd\AiHub\Models\AiHubSetting::query()->updateOrCreate(
                 ['id' => 1],
@@ -116,6 +120,10 @@ class SettingsStore
                 config(["ai-hub.providers.{$provider}.enabled" => (bool) $data['enabled']]);
             }
         }
+
+        if (isset($settings['budget']) && is_array($settings['budget'])) {
+            config(['ai-hub.budget' => array_replace_recursive((array) config('ai-hub.budget', []), $settings['budget'])]);
+        }
     }
 
     public function priority(): array
@@ -147,6 +155,13 @@ class SettingsStore
             'priority' => config('ai-hub.priority', ProviderCatalog::keys()),
             'defaults' => config('ai-hub.defaults', []),
             'providers' => $providers,
+            'prompts' => [],
+            'budget' => [
+                'monthly_usd' => config('ai-hub.budget.monthly_usd'),
+                'on_exceed' => config('ai-hub.budget.on_exceed', 'block'),
+                'per_provider' => (array) config('ai-hub.budget.per_provider', []),
+                'per_job' => (array) config('ai-hub.budget.per_job', []),
+            ],
         ];
     }
 
@@ -178,6 +193,13 @@ class SettingsStore
         }
 
         $all['failover_enabled'] = (bool) ($all['failover_enabled'] ?? true);
+        $all['prompts'] = array_values($all['prompts'] ?? []);
+        $all['budget'] = array_replace_recursive([
+            'monthly_usd' => null,
+            'on_exceed' => 'block',
+            'per_provider' => [],
+            'per_job' => [],
+        ], is_array($all['budget'] ?? null) ? $all['budget'] : []);
 
         return $all;
     }

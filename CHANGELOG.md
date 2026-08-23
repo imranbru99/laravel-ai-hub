@@ -2,6 +2,29 @@
 
 All notable changes to **Laravel AI Hub** are documented here.
 
+## [1.3.0] — 2026-08-23
+
+### Added
+- **Studio Playground**: Live prompt runner on `/ai-hub` with Send and SSE Stream, cost/latency/token readout, optional vision image URL, and draft persistence in `localStorage`.
+- **Tool calling & vision**: `tools()`, `toolChoice()`, `image()`, and `images()` on the fluent API. `AiResponse::$toolCalls` for follow-up turns. Mapped for OpenAI-compatible, Azure, Claude, and Gemini.
+- **Spend budgets**: Monthly USD cap, optional per-provider and per-job caps, `block` or `warn` when exceeded. Editable on the Analytics tab.
+- **Prompt templates**: Named templates with `{var}` interpolation via `AIHub::promptTemplate()`, savable from Playground.
+- **Response cache**: `->cache($ttl)` skips the HTTP call on hit and logs `cache_hit` at $0.
+- **Providers**: Azure OpenAI, Together, Fireworks, and Perplexity (OpenAI-compatible except Azure's deployment URL).
+
+### Changed
+- Studio version badge is now **v1.3.0**. Catalog expanded to 13 providers.
+
+## [1.2.2] — 2026-08-23
+
+### Fixed
+- **Studio light mode**: Contrast on unsaved badges, accent labels, checkboxes, native `<select>` menus, and footer links so light theme is fully usable.
+- **Theme flash**: Saved light/dark preference is applied in `<head>` before Alpine.js boots (no wrong-theme flash).
+- **Stale published config**: After `composer update`, Studio always shows the package model catalog and pricing even if the host app still has an older published `config/ai-hub.php`.
+
+### Changed
+- Studio version badge is now **v1.2.2**.
+
 ## [1.2.1] — 2026-08-23
 
 ### Added

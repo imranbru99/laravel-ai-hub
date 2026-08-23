@@ -13,6 +13,7 @@ class AiHubServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/ai-hub.php', 'ai-hub');
+        $this->overlayPackageCatalog();
 
         $this->app->singleton(SettingsStore::class);
         $this->app->singleton(AIHubManager::class, fn () => new AIHubManager);
@@ -80,5 +81,40 @@ class AiHubServiceProvider extends ServiceProvider
             ->prefix($prefix)
             ->name('ai-hub.')
             ->group(__DIR__.'/../routes/web.php');
+    }
+
+    /**
+     * Keep package model lists & pricing current after Composer upgrades,
+     * even when a stale published config/ai-hub.php exists in the host app.
+     */
+    protected function overlayPackageCatalog(): void
+    {
+        $package = require __DIR__.'/../config/ai-hub.php';
+
+        $popular = [];
+        foreach ($package['popular_models'] ?? [] as $provider => $models) {
+            $existing = (array) config('ai-hub.popular_models.'.$provider, []);
+            $popular[$provider] = array_values(array_unique(array_merge(
+                array_values($models),
+                array_values($existing)
+            )));
+        }
+
+        if ($popular !== []) {
+            config(['ai-hub.popular_models' => $popular]);
+        }
+
+        $pricing = $package['pricing'] ?? [];
+        foreach ((array) config('ai-hub.pricing', []) as $provider => $rows) {
+            if (! is_array($rows)) {
+                continue;
+            }
+
+            $pricing[$provider] = array_replace($pricing[$provider] ?? [], $rows);
+        }
+
+        if ($pricing !== []) {
+            config(['ai-hub.pricing' => $pricing]);
+        }
     }
 }

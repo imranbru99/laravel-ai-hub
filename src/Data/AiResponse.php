@@ -19,7 +19,29 @@ class AiResponse
         public readonly ?string $error = null,
         public readonly array $raw = [],
         public readonly array $meta = [],
+        public readonly array $toolCalls = [],
     ) {}
+
+    public static function fromArray(array $data): self
+    {
+        return new self(
+            content: (string) ($data['content'] ?? ''),
+            provider: (string) ($data['provider'] ?? 'unknown'),
+            model: (string) ($data['model'] ?? 'unknown'),
+            promptTokens: (int) ($data['prompt_tokens'] ?? 0),
+            completionTokens: (int) ($data['completion_tokens'] ?? 0),
+            totalTokens: (int) ($data['total_tokens'] ?? 0),
+            costUsd: (float) ($data['cost_usd'] ?? 0),
+            latencyMs: (float) ($data['latency_ms'] ?? 0),
+            attempts: (int) ($data['attempts'] ?? 1),
+            jsonRecovered: (bool) ($data['json_recovered'] ?? false),
+            success: (bool) ($data['success'] ?? true),
+            error: $data['error'] ?? null,
+            raw: is_array($data['raw'] ?? null) ? $data['raw'] : [],
+            meta: is_array($data['meta'] ?? null) ? $data['meta'] : [],
+            toolCalls: is_array($data['tool_calls'] ?? null) ? $data['tool_calls'] : [],
+        );
+    }
 
     public function json(?bool $assoc = true): mixed
     {
@@ -48,6 +70,7 @@ class AiResponse
             'success' => $this->success,
             'error' => $this->error,
             'meta' => $this->meta,
+            'tool_calls' => $this->toolCalls,
         ];
     }
 }
