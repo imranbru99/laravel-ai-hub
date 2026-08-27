@@ -1,6 +1,6 @@
 {
     "name": "imrandevbd/laravel-ai-hub",
-    "description": "Premium multi-provider Laravel AI SDK — OpenAI, Gemini, Claude, Grok, DeepSeek, Mistral, Groq, Ollama & OpenRouter with failover, cost tracking, JSON recovery, and a visual studio UI.",
+    "description": "Premium multi-provider Laravel AI SDK — 13 providers, Studio playground, reasoning-model params, failover, cost tracking, JSON recovery, and Filament admin.",
     "type": "library",
     "license": "MIT",
     "keywords": [
@@ -58,7 +58,7 @@
         }
     },
     "suggest": {
-        "filament/filament": "Required only if you use AiHubDashboardWidget"
+        "filament/filament": "Required only if you use the AI Hub sidebar item or AiHubDashboardWidget"
     },
     "extra": {
         "laravel": {

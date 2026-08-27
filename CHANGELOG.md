@@ -2,6 +2,57 @@
 
 All notable changes to **Laravel AI Hub** are documented here.
 
+Packagist: [`imrandevbd/laravel-ai-hub`](https://packagist.org/packages/imrandevbd/laravel-ai-hub) · GitHub: [imranbru99/laravel-ai-hub](https://github.com/imranbru99/laravel-ai-hub)
+
+---
+
+## [1.4.0] — 2026-08-27
+
+**Studio v1.4.0.** Playground and the fluent API now match each model’s real parameter rules. Filament admin opens Studio in a new tab. Everything from 1.3 still ships: 13 providers, tools, vision, budgets, cache, failover, analytics.
+
+### Highlights
+
+- GPT-5.6 Luna / Terra / Sol, GPT-5, o3, o1, and DeepSeek-R1 no longer 400 on `temperature: 0.7`
+- OpenAI reasoning models receive `max_completion_tokens` instead of `max_tokens`
+- Filament sidebar **AI Hub** (and dashboard widget stats) open `/ai-hub` in a new browser tab
+- Unknown models that still reject sampling fields are retried once with those fields dropped
+
+### Added
+
+- **`ModelCapabilities`** — Detects reasoning vs chat models (including `openai/gpt-5` OpenRouter IDs). Omits `temperature`, `top_p`, `presence_penalty`, and `frequency_penalty` where the API rejects them. Remaps `max_tokens` → `max_completion_tokens` for OpenAI / Azure / OpenRouter GPT-5 & o-series. `gpt-5-chat*` and GPT-4o still get normal sampling.
+- **Playground (smart controls)** — Temperature input disables on reasoning models with a short explanation. Token field is labeled **Max completion** when remapped. Requests never send a rejected temperature. Default cap is 2048.
+- **Filament admin link** — Auto-registers an **AI Hub** navigation item on Filament v3/v4 panels (`target=_blank`). Optional `AiHubPlugin::make()`. Widget stats link to Studio the same way. Config: `AI_HUB_FILAMENT_NEW_TAB`, `AI_HUB_FILAMENT_LABEL`, `AI_HUB_FILAMENT_GROUP`, `AI_HUB_FILAMENT_ICON`, `AI_HUB_FILAMENT_SORT`.
+- **Claude clamp** — Temperature is capped to `0–1` (Anthropic’s range).
+- **Connection tester** — Does not send a 32-token cap on reasoning models (hidden reasoning would consume the whole budget).
+- **Tests** — `ModelCapabilitiesTest` covers GPT-5.6, o-series, `gpt-5-chat-latest`, DeepSeek reasoner, false positives (`o10`, `gpt-50`), and OpenAI 400 message detection.
+
+### Changed
+
+- Studio badge is **v1.4.0**.
+- `PendingRequest` strips unsupported sampling before the HTTP call, so `->temperature(0.7)` is safe on GPT-5.
+
+### Fixed
+
+- Playground HTTP 400: `Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported.`
+- Playground / fluent API HTTP 400: `Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.`
+
+---
+
+## Feature map (current)
+
+| Area | What you get |
+|---|---|
+| **Providers** | OpenAI · Gemini · Claude · Grok · DeepSeek · Mistral · Groq · Ollama · OpenRouter · Azure OpenAI · Together · Fireworks · Perplexity |
+| **Studio** | `/ai-hub` — Playground (send + SSE stream), keys, priority chain, analytics, light/dark, prompt templates |
+| **Fluent API** | `AIHub::openai()->prompt()->send()`, tools, vision, `cache()`, `promptTemplate()`, failover |
+| **Reasoning models** | Auto-omit temperature; remap max tokens; one 400 retry |
+| **Cost & budgets** | USD per 1M tokens, monthly / provider / job caps (`block` or `warn`) |
+| **Reliability** | Retries + jitter on 429/5xx, JSON auto-repair, zero-worker `after_response` logs |
+| **Admin** | Filament widget + **AI Hub** nav (new tab), `AIHub::auth()`, roles, emails, Gate |
+| **CLI** | `php artisan ai-hub:configure` |
+
+---
+
 ## [1.3.0] — 2026-08-23
 
 ### Added

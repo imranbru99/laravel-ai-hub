@@ -4,6 +4,8 @@ namespace ImranDevBd\AiHub\Providers;
 
 use ImranDevBd\AiHub\Data\AiResponse;
 use ImranDevBd\AiHub\Data\EmbeddingResponse;
+use ImranDevBd\AiHub\Support\ModelCapabilities;
+use Illuminate\Http\Client\Response;
 
 class OpenAIProvider extends AbstractProvider
 {
@@ -20,9 +22,7 @@ class OpenAIProvider extends AbstractProvider
         ];
 
         $body = $this->chatBody($payload, $messages, false);
-
-        $response = $this->client()->post($this->chatUrl((string) $model), $body);
-        $response->throw();
+        $response = $this->sendChat($body);
         $json = $response->json();
 
         $content = (string) data_get($json, 'choices.0.message.content', '');
@@ -50,12 +50,7 @@ class OpenAIProvider extends AbstractProvider
         ];
 
         $body = $this->chatBody($payload, $messages, true);
-
-        $response = $this->client()
-            ->withOptions(['stream' => true])
-            ->post($this->chatUrl((string) $model), $body);
-
-        $response->throw();
+        $response = $this->sendChat($body);
 
         $bodyStream = $response->toPsrResponse()->getBody();
         $buffer = '';
@@ -130,7 +125,54 @@ class OpenAIProvider extends AbstractProvider
             'stream' => $stream ? true : null,
         ], fn ($v) => $v !== null);
 
-        return $body;
+        return ModelCapabilities::sanitizeChatBody($body);
+    }
+
+    /**
+     * POST chat/completions, retrying once if the model rejects sampling fields.
+     */
+    protected function sendChat(array $body): Response
+    {
+        $url = $this->chatUrl((string) ($body['model'] ?? ''));
+        $response = $this->postChat($url, $body);
+
+        if ($this->shouldRetryWithoutSampling($response, $body)) {
+            $response = $this->postChat($url, ModelCapabilities::dropSampling($body, (string) $response->body()));
+        }
+
+        $response->throw();
+
+        return $response;
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     */
+    protected function postChat(string $url, array $body): Response
+    {
+        $http = $this->client();
+        if (! empty($body['stream'])) {
+            $http = $http->withOptions(['stream' => true]);
+        }
+
+        return $http->post($url, $body);
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     */
+    protected function shouldRetryWithoutSampling(Response $response, array $body): bool
+    {
+        if ($response->status() !== 400) {
+            return false;
+        }
+
+        $error = (string) $response->body();
+        if (! ModelCapabilities::looksLikeUnsupportedSampling($error)) {
+            return false;
+        }
+
+        return ModelCapabilities::dropSampling($body, $error) !== $body;
     }
 
     protected function chatUrl(string $model): string

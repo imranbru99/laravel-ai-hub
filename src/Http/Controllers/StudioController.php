@@ -5,6 +5,7 @@ namespace ImranDevBd\AiHub\Http\Controllers;
 use ImranDevBd\AiHub\Facades\AIHub;
 use ImranDevBd\AiHub\Support\Analytics;
 use ImranDevBd\AiHub\Support\BudgetGuard;
+use ImranDevBd\AiHub\Support\ModelCapabilities;
 use ImranDevBd\AiHub\Support\ProviderCatalog;
 use ImranDevBd\AiHub\Support\SettingsStore;
 use Illuminate\Http\JsonResponse;
@@ -182,6 +183,7 @@ class StudioController extends Controller
             $this->settings->applyToConfig();
             $pending = AIHub::provider($validated['provider'])->withoutFailover();
 
+            $model = (string) ($validated['model'] ?? config('ai-hub.defaults.'.$validated['provider'], ''));
             if (! empty($validated['model'])) {
                 $pending->model($validated['model']);
             }
@@ -189,10 +191,12 @@ class StudioController extends Controller
                 $pending->apiKey($validated['api_key']);
             }
 
-            $response = $pending
-                ->prompt($validated['prompt'] ?? 'Reply with exactly: OK')
-                ->maxTokens(32)
-                ->send();
+            $pending->prompt($validated['prompt'] ?? 'Reply with exactly: OK');
+            if (! ModelCapabilities::usesMaxCompletionTokens($model)) {
+                $pending->maxTokens(32);
+            }
+
+            $response = $pending->send();
 
             return response()->json([
                 'success' => true,
@@ -363,7 +367,8 @@ class StudioController extends Controller
         if (! empty($validated['image'])) {
             $pending->image($validated['image']);
         }
-        if (isset($validated['temperature'])) {
+        $model = (string) ($validated['model'] ?? '');
+        if (isset($validated['temperature']) && ($model === '' || ModelCapabilities::supportsTemperature($model))) {
             $pending->temperature((float) $validated['temperature']);
         }
         if (isset($validated['max_tokens'])) {

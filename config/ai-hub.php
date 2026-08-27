@@ -573,8 +573,11 @@ return [
     */
     'filament' => [
         'enabled' => env('AI_HUB_FILAMENT', true),
-        'navigation_group' => 'AI Hub',
-        'navigation_icon' => 'heroicon-o-cpu-chip',
+        'navigation_label' => env('AI_HUB_FILAMENT_LABEL', 'AI Hub'),
+        'navigation_group' => env('AI_HUB_FILAMENT_GROUP'),
+        'navigation_icon' => env('AI_HUB_FILAMENT_ICON', 'heroicon-o-cpu-chip'),
+        'navigation_sort' => (int) env('AI_HUB_FILAMENT_SORT', 50),
+        'open_in_new_tab' => env('AI_HUB_FILAMENT_NEW_TAB', true),
     ],
 
 ];

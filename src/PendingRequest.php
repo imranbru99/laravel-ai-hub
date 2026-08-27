@@ -10,6 +10,7 @@ use ImranDevBd\AiHub\Jobs\TrackAiUsageJob;
 use ImranDevBd\AiHub\Support\BudgetGuard;
 use ImranDevBd\AiHub\Support\CostCalculator;
 use ImranDevBd\AiHub\Support\JsonRecovery;
+use ImranDevBd\AiHub\Support\ModelCapabilities;
 use ImranDevBd\AiHub\Support\RetryHandler;
 use Illuminate\Support\Facades\Cache;
 use Throwable;
@@ -534,7 +535,7 @@ class PendingRequest
             $payload['response_format'] = ['type' => 'json_object'];
         }
 
-        return array_filter($payload, fn ($v) => $v !== null);
+        return ModelCapabilities::stripUnsupported(array_filter($payload, fn ($v) => $v !== null));
     }
 
     /**

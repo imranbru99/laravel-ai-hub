@@ -46,6 +46,7 @@ composer require imrandevbd/laravel-ai-hub
 |---|---|
 | **Multi-Provider Hub** | OpenAI · Gemini · Claude · Grok · DeepSeek · Mistral · Groq · Ollama · OpenRouter · Azure · Together · Fireworks · Perplexity |
 | **Visual Studio** | `/ai-hub` with Playground, light/dark mode, per-provider save, budgets & templates |
+| **Reasoning-model params** | GPT-5 / o-series / DeepSeek-R1: omit `temperature`, send `max_completion_tokens` so playground and `->temperature()` never 400 |
 | **Failover Priority Chain** | Customize and drag-and-drop provider priority order (`#1` tried first) |
 | **JSON Recovery** | Strips markdown code blocks and repairs broken/unclosed braces automatically |
 | **Retries & Backoff** | Exponential backoff with jitter on 429 and 5xx errors |
@@ -54,6 +55,7 @@ composer require imrandevbd/laravel-ai-hub
 | **Zero-Latency Logging** | Logs saved automatically via `after_response` lifecycle or background queue |
 | **Telemetry Dashboard** | 30-day spend, failure rate, JSON recovery rate, latency p95, daily cost chart |
 | **Filament Widget** | Optional ready-to-use widget for Filament v3/v4 admin panels |
+| **Filament nav (new tab)** | Admin sidebar **AI Hub** opens `/ai-hub` Studio in a new browser tab |
 
 ---
 
@@ -84,6 +86,13 @@ php artisan vendor:publish --tag=ai-hub-config --force
 ```
 
 `--force` overwrites a previously published `config/ai-hub.php`. Skip it if you customized that file — new models still appear in the dropdown.
+
+If Studio still shows the **old layout** (no Playground tab, no `Studio v1.4.0` badge), Laravel is using a published copy at `resources/views/vendor/ai-hub/studio.blade.php`. That file wins over the package. Either delete it, or refresh it:
+
+```bash
+php artisan vendor:publish --tag=ai-hub-views --force
+php artisan view:clear
+```
 
 ### Environment Configuration (`.env`)
 
@@ -148,7 +157,7 @@ Visit **`/ai-hub`** in your browser after installing.
    - `★ Default` (Cyan badge) — Active `#1` priority default provider.
 4. **Floating Quick-Save Bar**: Automatically slides up if unsaved changes exist anywhere on the page, letting you save all modified providers with one click without scrolling.
 5. **Interactive Connection Tester**: Test your API keys and models with live round-trip latency and token cost diagnostics.
-6. **Playground**: Send or stream a prompt against any provider, attach an image URL, and save named templates.
+6. **Playground**: Send or stream a prompt against any provider, attach an image URL, and save named templates. GPT-5 / o-series / DeepSeek-R1 sampling limits are applied automatically (`temperature` omitted, `max_tokens` remapped).
 7. **Spend budgets**: Set a monthly USD cap on the Analytics tab (`block` requests or `warn` only).
 
 ### CLI Alternative (`ai-hub:configure`)
@@ -429,6 +438,24 @@ AI_HUB_MIDDLEWARE="auth,role:admin"
 - **Guests**: Redirected to `/login` (or 403 for API calls).
 - **Unauthorized users**: Blocked with `403 Forbidden`.
 - **Local Environment**: Automatically enabled during local development.
+
+---
+
+## Filament admin
+
+When Filament is installed, the panel sidebar gets an **AI Hub** item that opens Studio (`/ai-hub`) in a **new tab**. Dashboard widget stats do the same.
+
+```php
+use ImranDevBd\AiHub\Filament\AiHubPlugin;
+
+$panel->plugin(AiHubPlugin::make()); // optional — auto-registered if omitted
+```
+
+```env
+AI_HUB_FILAMENT=true
+AI_HUB_FILAMENT_NEW_TAB=true
+# AI_HUB_FILAMENT_GROUP="Settings"
+```
 
 ---
 

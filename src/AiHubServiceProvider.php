@@ -31,6 +31,10 @@ class AiHubServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'ai-hub');
 
         $this->publishes([
+            __DIR__.'/../resources/views' => resource_path('views/vendor/ai-hub'),
+        ], 'ai-hub-views');
+
+        $this->publishes([
             __DIR__.'/../database/migrations' => database_path('migrations'),
         ], 'ai-hub-migrations');
 
@@ -48,6 +52,35 @@ class AiHubServiceProvider extends ServiceProvider
         }
 
         $this->registerRoutes();
+        $this->registerFilamentNavigation();
+    }
+
+    /**
+     * Add an "AI Hub" sidebar item that opens Studio in a new tab.
+     */
+    protected function registerFilamentNavigation(): void
+    {
+        if (! class_exists(\Filament\Facades\Filament::class)
+            || ! class_exists(\Filament\Navigation\NavigationItem::class)) {
+            return;
+        }
+
+        \Filament\Facades\Filament::serving(function (): void {
+            if (! config('ai-hub.filament.enabled', true) || ! config('ai-hub.settings.ui_enabled', true)) {
+                return;
+            }
+
+            $panel = \Filament\Facades\Filament::getCurrentPanel();
+            if (! $panel) {
+                return;
+            }
+
+            if (method_exists($panel, 'hasPlugin') && $panel->hasPlugin('ai-hub')) {
+                return;
+            }
+
+            $panel->navigationItems([\ImranDevBd\AiHub\Filament\AiHubNavigation::item()]);
+        });
     }
 
     protected function registerRoutes(): void

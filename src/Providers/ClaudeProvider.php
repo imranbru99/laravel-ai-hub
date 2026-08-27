@@ -25,7 +25,7 @@ class ClaudeProvider extends AbstractProvider
         $body = array_filter([
             'model' => $model,
             'max_tokens' => $payload['max_tokens'] ?? 4096,
-            'temperature' => $payload['temperature'] ?? null,
+            'temperature' => $this->clampTemperature($payload['temperature'] ?? null),
             'system' => $system,
             'messages' => $chatMessages,
             'tools' => isset($payload['tools']) ? $this->mapTools($payload['tools']) : null,
@@ -124,6 +124,15 @@ class ClaudeProvider extends AbstractProvider
             'x-api-key' => $this->apiKey(),
             'anthropic-version' => $this->config['version'] ?? '2023-06-01',
         ]);
+    }
+
+    protected function clampTemperature(mixed $temperature): ?float
+    {
+        if ($temperature === null || $temperature === '') {
+            return null;
+        }
+
+        return max(0.0, min(1.0, (float) $temperature));
     }
 
     protected function splitSystem(array $messages): array

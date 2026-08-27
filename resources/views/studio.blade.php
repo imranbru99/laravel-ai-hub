@@ -123,7 +123,7 @@
                 <div class="flex items-center gap-2">
                     <h1 class="text-xl font-bold tracking-tight sm:text-2xl" :class="theme==='dark' ? 'text-white' : 'text-slate-900'">{{ $brand['name'] }}</h1>
                     <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-                          :class="theme==='dark' ? 'bg-white/10 text-accent-soft' : 'bg-slate-100 text-teal-700 border border-teal-200'">Studio v1.3.0</span>
+                          :class="theme==='dark' ? 'bg-white/10 text-accent-soft' : 'bg-slate-100 text-teal-700 border border-teal-200'">Studio v1.4.0</span>
                 </div>
                 <p class="text-xs" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">{{ $brand['tagline'] }}</p>
             </div>
@@ -482,7 +482,7 @@
             <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
                 <div>
                     <h2 class="text-lg font-bold" :class="theme==='dark' ? 'text-white' : 'text-slate-900'">Playground</h2>
-                    <p class="mt-1 text-sm" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">Run a live prompt against any configured provider. Failover is off so you test the provider you pick.</p>
+                    <p class="mt-1 text-sm" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">Run a live prompt against any configured provider. Sampling knobs the model rejects (temperature on GPT-5 / o-series, etc.) are omitted automatically.</p>
                 </div>
                 <select x-model="playground.template" @change="loadPromptTemplate()"
                         class="rounded-xl border px-3 py-2 text-sm"
@@ -521,15 +521,22 @@
                 </label>
                 <label class="text-xs font-semibold">
                     <span class="mb-1.5 block uppercase tracking-wider" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">Temperature</span>
-                    <input type="number" min="0" max="2" step="0.1" x-model.number="playground.temperature" @input="persistPlayground()"
-                           class="w-full rounded-xl border px-3 py-2.5 text-sm"
+                    <input type="number" min="0" :max="playground.provider==='claude' ? 1 : 2" step="0.1"
+                           x-model.number="playground.temperature" @input="persistPlayground()"
+                           :disabled="!modelSupportsTemperature()"
+                           class="w-full rounded-xl border px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                            :class="theme==='dark' ? 'border-white/10 bg-ink-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'">
+                    <p x-show="!modelSupportsTemperature()" class="mt-1 text-[11px] font-normal"
+                       :class="theme==='dark' ? 'text-slate-500' : 'text-slate-400'">Fixed by this reasoning model — not sent.</p>
                 </label>
                 <label class="text-xs font-semibold">
-                    <span class="mb-1.5 block uppercase tracking-wider" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">Max tokens</span>
+                    <span class="mb-1.5 block uppercase tracking-wider" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'"
+                          x-text="usesMaxCompletionTokens() ? 'Max completion' : 'Max tokens'"></span>
                     <input type="number" min="16" max="128000" x-model.number="playground.maxTokens" @input="persistPlayground()"
                            class="w-full rounded-xl border px-3 py-2.5 text-sm"
                            :class="theme==='dark' ? 'border-white/10 bg-ink-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900'">
+                    <p x-show="usesMaxCompletionTokens()" class="mt-1 text-[11px] font-normal"
+                       :class="theme==='dark' ? 'text-slate-500' : 'text-slate-400'">Sent as max_completion_tokens (includes reasoning).</p>
                 </label>
             </div>
 
@@ -823,7 +830,7 @@ function aiHubStudio(boot) {
             model: (popular[settings.default || providers[0]] || [])[0] || '',
             customModel: '',
             temperature: 0.7,
-            maxTokens: 1024,
+            maxTokens: 2048,
             system: '',
             prompt: '',
             image: '',
@@ -1108,16 +1115,40 @@ function aiHubStudio(boot) {
             return this.playground.model === '__custom' ? this.playground.customModel : this.playground.model;
         },
 
-        playgroundPayload() {
+        modelCaps() {
+            const raw = String(this.playgroundModel() || '').toLowerCase().trim();
+            const id = raw.split('/').pop().split('\\').pop();
+            const chat = /^gpt-5(?:\.\d+)?-chat/.test(id);
+            const openaiReasoning = !chat && (/^o[1-4](?:-|$)/.test(id) || /^gpt-5(?:$|[.-])/.test(id) || /^codex-/.test(id));
+            const deepseekReasoning = /^(deepseek-reasoner|deepseek-r1)/.test(id);
             return {
+                temperature: !openaiReasoning && !deepseekReasoning,
+                max_completion_tokens: openaiReasoning,
+                reasoning: openaiReasoning || deepseekReasoning,
+            };
+        },
+
+        modelSupportsTemperature() {
+            return this.modelCaps().temperature;
+        },
+
+        usesMaxCompletionTokens() {
+            return this.modelCaps().max_completion_tokens;
+        },
+
+        playgroundPayload() {
+            const payload = {
                 provider: this.playground.provider,
                 model: this.playgroundModel() || null,
                 system: this.playground.system || null,
                 prompt: this.playground.prompt,
                 image: this.playground.image || null,
-                temperature: this.playground.temperature,
                 max_tokens: this.playground.maxTokens,
             };
+            if (this.modelSupportsTemperature() && this.playground.temperature != null) {
+                payload.temperature = this.playground.temperature;
+            }
+            return payload;
         },
 
         async runPlayground(stream) {
