@@ -1,0 +1,75 @@
+{
+    "name": "imrandevbd/laravel-ai-hub",
+    "description": "Premium multi-provider Laravel AI SDK — Google Gemini 3.8, Claude 3.7 hybrid thinking, GPT-5.6/o3 reasoning, 13 providers, Studio playground, failover, cost tracking, JSON recovery, and Filament admin.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "ai",
+        "openai",
+        "gemini",
+        "claude",
+        "anthropic",
+        "grok",
+        "xai",
+        "deepseek",
+        "mistral",
+        "groq",
+        "ollama",
+        "openrouter",
+        "llm",
+        "failover",
+        "cost-tracking",
+        "observability",
+        "embeddings"
+    ],
+    "authors": [
+        {
+            "name": "Imran Dev BD",
+            "email": "me@imrandev.bd",
+            "homepage": "https://imrandev.bd",
+            "role": "Developer"
+        }
+    ],
+    "homepage": "https://github.com/imranbru99/laravel-ai-hub",
+    "support": {
+        "issues": "https://github.com/imranbru99/laravel-ai-hub/issues",
+        "source": "https://github.com/imranbru99/laravel-ai-hub"
+    },
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/http": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/database": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/queue": "^10.0|^11.0|^12.0|^13.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0|^9.0|^10.0",
+        "phpunit/phpunit": "^10.0|^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "ImranDevBd\\AiHub\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ImranDevBd\\AiHub\\Tests\\": "tests/"
+        }
+    },
+    "suggest": {
+        "filament/filament": "Required only if you use the AI Hub sidebar item or AiHubDashboardWidget"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ImranDevBd\\AiHub\\AiHubServiceProvider"
+            ],
+            "aliases": {
+                "AIHub": "ImranDevBd\\AiHub\\Facades\\AIHub"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
