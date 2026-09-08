@@ -13,6 +13,7 @@ use ImranDevBd\AiHub\Support\JsonRecovery;
 use ImranDevBd\AiHub\Support\ModelCapabilities;
 use ImranDevBd\AiHub\Support\RetryHandler;
 use Illuminate\Support\Facades\Cache;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 class PendingRequest
@@ -25,6 +26,9 @@ class PendingRequest
     protected ?int $maxTokens = null;
     protected bool $recoverJson = false;
     protected bool $forceJsonObject = false;
+    protected ?array $responseSchema = null;
+    protected ?string $responseSchemaName = null;
+    protected ?string $responseSchemaDescription = null;
     protected array $meta = [];
     protected ?string $jobTrace = null;
     protected ?string $apiKeyOverride = null;
@@ -81,7 +85,7 @@ class PendingRequest
     public function apiKey(string $apiKey): self
     {
         $this->apiKeyOverride = $apiKey;
-        $this->manager->forget($this->providerName);
+        $this->getManager()->forget($this->providerName);
 
         return $this;
     }
@@ -213,6 +217,33 @@ class PendingRequest
     }
 
     /**
+     * Enforce strict JSON output adhering to a JSON schema.
+     *
+     * @param array<string, mixed> $schema JSON schema definition (e.g. ['type' => 'object', 'properties' => [...], 'required' => [...]])
+     * @param string|null $name Schema name (used by OpenAI response_format.json_schema.name)
+     * @param string|null $description Optional schema description
+     */
+    public function asJsonSchema(array $schema, ?string $name = 'response', ?string $description = null): self
+    {
+        $this->forceJsonObject = true;
+        $this->responseSchema = $schema;
+        $this->responseSchemaName = $name ?: 'response';
+        $this->responseSchemaDescription = $description;
+
+        return $this;
+    }
+
+    /**
+     * Alias for asJsonSchema().
+     *
+     * @param array<string, mixed> $schema
+     */
+    public function structured(array $schema, ?string $name = 'response'): self
+    {
+        return $this->asJsonSchema($schema, $name);
+    }
+
+    /**
      * Enable or configure hybrid thinking / reasoning budget (for Gemini 3.8/3.7, Claude 3.7).
      *
      * @param int|bool|null $budget Budget in tokens (e.g. 2048, 4096), or true for default, or 0/false to disable.
@@ -257,6 +288,14 @@ class PendingRequest
         $this->meta['job'] = $job;
 
         return $this;
+    }
+
+    /**
+     * Generate completion (alias of send()).
+     */
+    public function generate(): AiResponse
+    {
+        return $this->send();
     }
 
     public function send(): AiResponse
@@ -327,6 +366,11 @@ class PendingRequest
                 $this->remember($result, $model, $payload);
                 $this->log($result);
 
+                $manager = $this->getManager();
+                if ($manager instanceof \ImranDevBd\AiHub\Testing\AIHubFake) {
+                    $manager->record($this, $result);
+                }
+
                 return $result;
             } catch (Throwable $e) {
                 $tried[] = $providerName;
@@ -367,6 +411,10 @@ class PendingRequest
      */
     protected function resolveChain(): array
     {
+        if ($this->getManager() instanceof \ImranDevBd\AiHub\Testing\AIHubFake) {
+            return [$this->providerName];
+        }
+
         $failover = $this->failover ?? (bool) config('ai-hub.failover_enabled', true);
 
         if (! $failover || $this->apiKeyOverride) {
@@ -458,6 +506,10 @@ class PendingRequest
                 meta: array_merge($this->meta, ['type' => 'embedding']),
             ));
 
+            if ($this->getManager() instanceof \ImranDevBd\AiHub\Testing\AIHubFake) {
+                $this->getManager()->record($this, $result);
+            }
+
             return $result;
         } catch (Throwable $e) {
             $this->log(new AiResponse(
@@ -518,6 +570,11 @@ class PendingRequest
 
             $this->remember($result, $model, $payload);
             $this->log($result);
+
+            $manager = $this->getManager();
+            if ($manager instanceof \ImranDevBd\AiHub\Testing\AIHubFake) {
+                $manager->record($this, $result);
+            }
         } catch (Throwable $e) {
             $this->log(new AiResponse(
                 content: $buffer,
@@ -531,6 +588,142 @@ class PendingRequest
 
             throw new AiHubException($e->getMessage(), (int) $e->getCode(), $e);
         }
+    }
+
+    /**
+     * Consume the streaming generator with a closure callback.
+     */
+    public function streamRaw(callable $onChunk): void
+    {
+        foreach ($this->stream() as $chunk) {
+            $onChunk($chunk);
+        }
+    }
+
+    /**
+     * Return a Server-Sent Events (SSE) StreamedResponse for immediate browser / HTTP streaming.
+     *
+     * @param callable(string): void|null $onChunk Optional chunk interceptor callback
+     * @param array<string, string> $headers Additional HTTP response headers
+     */
+    public function streamResponse(?callable $onChunk = null, array $headers = []): StreamedResponse
+    {
+        $defaultHeaders = [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache, no-transform',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no',
+        ];
+
+        return new StreamedResponse(function () use ($onChunk) {
+            $isTesting = function_exists('app') && app()->runningUnitTests();
+            $flushBuffers = function () use ($isTesting) {
+                if ($isTesting) {
+                    return;
+                }
+                if (ob_get_level() > 0) {
+                    @ob_flush();
+                }
+                if (function_exists('flush')) {
+                    @flush();
+                }
+            };
+
+            try {
+                foreach ($this->stream() as $chunk) {
+                    if ($onChunk !== null) {
+                        $onChunk($chunk);
+                    }
+
+                    $data = json_encode(['chunk' => $chunk, 'done' => false], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+                    echo "data: {$data}\n\n";
+                    $flushBuffers();
+                }
+
+                echo "data: [DONE]\n\n";
+                $flushBuffers();
+            } catch (Throwable $e) {
+                $errorData = json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+                echo "data: {$errorData}\n\n";
+                $flushBuffers();
+            }
+        }, 200, array_merge($defaultHeaders, $headers));
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Inspection Getters (Testing, Middleware & Debugging)
+    |--------------------------------------------------------------------------
+    */
+
+    public function getProvider(): string
+    {
+        return $this->providerName;
+    }
+
+    public function getModel(): ?string
+    {
+        return $this->model;
+    }
+
+    public function getPrompt(): ?string
+    {
+        return $this->prompt;
+    }
+
+    public function getMessages(): array
+    {
+        return $this->messages;
+    }
+
+    public function getTemperature(): ?float
+    {
+        return $this->temperature;
+    }
+
+    public function getMaxTokens(): ?int
+    {
+        return $this->maxTokens;
+    }
+
+    public function getTools(): array
+    {
+        return $this->tools;
+    }
+
+    public function getToolChoice(): mixed
+    {
+        return $this->toolChoice;
+    }
+
+    public function getImages(): array
+    {
+        return $this->images;
+    }
+
+    public function getMeta(): array
+    {
+        return $this->meta;
+    }
+
+    public function getResponseSchema(): ?array
+    {
+        return $this->responseSchema;
+    }
+
+    public function isRecoverJson(): bool
+    {
+        return $this->recoverJson;
+    }
+
+    public function isForceJsonObject(): bool
+    {
+        return $this->forceJsonObject;
+    }
+
+    public function hasJobTrace(): ?string
+    {
+        return $this->jobTrace;
     }
 
     protected function buildPayload(string $model): array
@@ -565,7 +758,23 @@ class PendingRequest
             $payload['tool_choice'] = $this->toolChoice;
         }
 
-        if ($this->forceJsonObject && in_array($this->providerName, ['openai', 'azure', 'openrouter', 'together', 'fireworks'], true)) {
+        if ($this->responseSchema !== null) {
+            $payload['response_schema'] = $this->responseSchema;
+            $payload['response_schema_name'] = $this->responseSchemaName ?? 'response';
+            $payload['response_schema_description'] = $this->responseSchemaDescription;
+
+            if (in_array($this->providerName, ['openai', 'azure', 'openrouter', 'together', 'fireworks'], true)) {
+                $payload['response_format'] = [
+                    'type' => 'json_schema',
+                    'json_schema' => array_filter([
+                        'name' => $this->responseSchemaName ?? 'response',
+                        'description' => $this->responseSchemaDescription,
+                        'schema' => $this->responseSchema,
+                        'strict' => true,
+                    ], fn ($v) => $v !== null),
+                ];
+            }
+        } elseif ($this->forceJsonObject && in_array($this->providerName, ['openai', 'azure', 'openrouter', 'together', 'fireworks'], true)) {
             $payload['response_format'] = ['type' => 'json_object'];
         }
 
@@ -623,6 +832,25 @@ class PendingRequest
         ];
     }
 
+    public function getManager(): AIHubManager
+    {
+        if (function_exists('app') && app()->bound('ai-hub')) {
+            $bound = app('ai-hub');
+            if ($bound instanceof AIHubManager) {
+                return $bound;
+            }
+        }
+
+        if (function_exists('app') && app()->bound(AIHubManager::class)) {
+            $bound = app(AIHubManager::class);
+            if ($bound instanceof AIHubManager) {
+                return $bound;
+            }
+        }
+
+        return $this->manager;
+    }
+
     protected function resolveProvider(): AIProviderContract
     {
         $overrides = array_filter([
@@ -630,7 +858,7 @@ class PendingRequest
             'base_url' => $this->baseUrlOverride,
         ], fn ($v) => $v !== null && $v !== '');
 
-        return $this->manager->resolve($this->providerName, $overrides);
+        return $this->getManager()->resolve($this->providerName, $overrides);
     }
 
     protected function defaultModel(): string

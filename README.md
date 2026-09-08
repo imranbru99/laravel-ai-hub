@@ -28,9 +28,13 @@ composer require imrandevbd/laravel-ai-hub
 | Advantage | Benefit |
 |---|---|
 | **One Unified API** | Identical fluent chain across 13 providers including Azure OpenAI, Together, Fireworks & Perplexity |
+| **Testing Assertion Engine** | Full mocking & assertions with `AIHub::fake()`, `assertSent()`, `assertNotSent()`, `assertSentCount()` |
+| **Conversational Chat Sessions** | Multi-turn sessions via `AIHub::chat()` with history, export/load, and cumulative cost tracking |
+| **Server-Sent Events (SSE)** | `streamResponse()` returns standard SSE stream ready for browsers and frontend apps |
+| **Strict JSON Schemas** | `asJsonSchema()` & `AIHub::structured()` enforce structured outputs across OpenAI, Gemini & Claude |
 | **Latest 2026 Models** | Out-of-the-box support for Google Gemini 3.8 series, GPT-5.6 series, Claude 3.7 Sonnet & Opus 4, Grok 4.6 & DeepSeek R1 |
 | **Hybrid Thinking Engine** | Fluent `->thinking()`, `->withoutThinking()`, and `->reasoningEffort()` across Gemini, Claude, and OpenAI |
-| **Interactive Studio UI** | `/ai-hub` — Playground with thinking controls, light/dark theme, per-card save, budgets, copy response |
+| **Interactive Studio UI** | `/ai-hub` (Studio v1.6.0) — Playground with thinking controls, light/dark theme, per-card save, budgets, copy response |
 | **Automatic Failover** | `#1 → #2 → #3…` chain fallback when rate-limited or unavailable |
 | **Tools, vision & cache** | Function tools, image inputs, named prompt templates, optional response cache |
 | **Spend budgets** | Monthly / provider / job USD caps with block or warn |
@@ -88,7 +92,7 @@ php artisan vendor:publish --tag=ai-hub-config --force
 
 `--force` overwrites a previously published `config/ai-hub.php`. Skip it if you customized that file — new models still appear in the dropdown.
 
-If Studio still shows the **old layout** (no Playground tab, no `Studio v1.4.0` badge), Laravel is using a published copy at `resources/views/vendor/ai-hub/studio.blade.php`. That file wins over the package. Either delete it, or refresh it:
+If Studio still shows the **old layout** (no Playground tab, no `Studio v1.6.0` badge), Laravel is using a published copy at `resources/views/vendor/ai-hub/studio.blade.php`. That file wins over the package. Either delete it, or refresh it:
 
 ```bash
 php artisan vendor:publish --tag=ai-hub-views --force
@@ -271,12 +275,124 @@ $data = AIHub::gemini()
     ->json(); // Returns clean PHP array
 ```
 
-### Streaming Responses
+### Structured Outputs & Strict JSON Schemas
+
+Enforce valid, structured JSON conforming to your custom schema across OpenAI, Azure, Gemini, and Claude:
 
 ```php
-foreach (AIHub::openai()->prompt('Write a technical essay')->stream() as $chunk) {
+$schema = [
+    'type' => 'object',
+    'properties' => [
+        'sentiment' => ['type' => 'string', 'enum' => ['positive', 'negative', 'neutral']],
+        'confidence' => ['type' => 'number'],
+        'key_topics' => ['type' => 'array', 'items' => ['type' => 'string']],
+    ],
+    'required' => ['sentiment', 'confidence', 'key_topics'],
+    'additionalProperties' => false,
+];
+
+// 1. Fluent chain
+$response = AIHub::openai('gpt-5.6-luna')
+    ->asJsonSchema($schema, 'SentimentAnalysis', 'Classify customer review sentiment')
+    ->prompt('The product shipped extremely fast and works wonderfully!')
+    ->generate();
+
+$data = $response->json(); // ['sentiment' => 'positive', 'confidence' => 0.99, ...]
+
+// 2. Shortcut helper
+$response = AIHub::structured($schema)
+    ->prompt('Customer feedback text...')
+    ->generate();
+```
+
+### Server-Sent Events (SSE) & Browser Streaming
+
+Stream AI completions directly into browser frontend apps (Fetch API, EventSource, or Inertia.js):
+
+```php
+// In a Laravel Controller
+public function stream(Request $request)
+{
+    return AIHub::gemini('gemini-3.8-flash')
+        ->prompt($request->input('prompt'))
+        ->streamResponse();
+}
+
+// Or consume stream chunks using a closure
+AIHub::openai()->prompt('Generate report')->streamRaw(function (string $chunk) {
     echo $chunk;
-    flush();
+});
+
+// Generator loop
+foreach (AIHub::openai()->prompt('Write essay')->stream() as $chunk) {
+    echo $chunk;
+}
+```
+
+### Multi-turn Conversational Chat Sessions (`AIHub::chat()`)
+
+Manage persistent, multi-turn dialogue sessions with automatic context retention, turn tracking, and accumulated token cost calculation:
+
+```php
+use ImranDevBd\AiHub\Facades\AIHub;
+
+// Initialize a session (optionally specify provider and model)
+$chat = AIHub::chat('claude', 'claude-3-7-sonnet-latest')
+    ->system('You are an expert Laravel and Pest PHP architect.');
+
+// Turn 1
+$reply1 = $chat->send('How do I mock external APIs cleanly in Pest?');
+echo $reply1->content;
+
+// Turn 2 (Context of Turn 1 is automatically preserved)
+$reply2 = $chat->send('Can you convert that snippet into an architectural action class?');
+echo $reply2->content;
+
+// Cumulative token & cost telemetry
+echo $chat->totalTokens(); // Total tokens across all turns
+echo $chat->totalCost();   // Total USD cost across all turns
+
+// Stream a chat turn directly as SSE to browser
+return $chat->streamResponse('Explain how it works step-by-step');
+
+// Export or restore chat history (e.g. for database persistence)
+$history = $chat->export(); // Array of messages, system prompt, tokens, etc.
+$chat->load($history);
+```
+
+### Testing Assertion Engine (`AIHub::fake()`)
+
+Mock AI responses and assert outbound requests with Laravel-style testing syntax without hitting real APIs or incurring costs:
+
+```php
+use ImranDevBd\AiHub\Facades\AIHub;
+
+public function test_user_summary_generation(): void
+{
+    // 1. Mock a simple string response
+    AIHub::fake('This is a simulated AI summary.');
+
+    // Or mock with sequential responses or per-provider responses:
+    // AIHub::fake([
+    //     'gemini' => 'Gemini simulated response',
+    //     'openai' => AIHub::response(['key' => 'value']),
+    // ]);
+
+    // Execute your application code
+    $response = AIHub::gemini('gemini-3.8-flash')
+        ->prompt('Summarize account history')
+        ->send();
+
+    $this->assertSame('This is a simulated AI summary.', $response->content);
+
+    // Assert that a matching request was dispatched
+    AIHub::assertSent(function ($request) {
+        return $request->getProvider() === 'gemini'
+            && str_contains($request->getPrompt(), 'Summarize account history');
+    });
+
+    AIHub::assertSentCount(1);
+    AIHub::assertNotSent(fn ($req) => $req->getProvider() === 'openai');
 }
 ```
 
@@ -327,17 +443,6 @@ $vector = AIHub::openai()
     ->model('text-embedding-3-small')
     ->embed('Laravel AI Hub semantic search')
     ->first(); // Returns float array vector
-```
-
-### Multi-turn Chat Conversations
-
-```php
-$response = AIHub::claude()->messages([
-    ['role' => 'system', 'content' => 'You are a Senior Laravel Architect.'],
-    ['role' => 'user', 'content' => 'How should I structure domain actions?'],
-    ['role' => 'assistant', 'content' => 'Use single-responsibility action classes.'],
-    ['role' => 'user', 'content' => 'Give me an example.'],
-])->send();
 ```
 
 ### Tagging Workflows & Background Jobs

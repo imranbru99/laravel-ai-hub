@@ -31,6 +31,11 @@ class GeminiProvider extends AbstractProvider
             'maxOutputTokens' => $payload['max_tokens'] ?? null,
         ], fn ($v) => $v !== null);
 
+        if (! empty($payload['response_schema'])) {
+            $generation['responseMimeType'] = 'application/json';
+            $generation['responseSchema'] = $payload['response_schema'];
+        }
+
         if (array_key_exists('thinking', $payload)) {
             $budget = $payload['thinking'];
             if ($budget === false || $budget === 0) {
@@ -114,6 +119,11 @@ class GeminiProvider extends AbstractProvider
             'temperature' => $payload['temperature'] ?? null,
             'maxOutputTokens' => $payload['max_tokens'] ?? null,
         ], fn ($v) => $v !== null);
+
+        if (! empty($payload['response_schema'])) {
+            $generation['responseMimeType'] = 'application/json';
+            $generation['responseSchema'] = $payload['response_schema'];
+        }
 
         if (array_key_exists('thinking', $payload)) {
             $budget = $payload['thinking'];

@@ -20,7 +20,7 @@ class ClaudeProvider extends AbstractProvider
             ['role' => 'user', 'content' => (string) ($payload['prompt'] ?? '')],
         ];
 
-        [$system, $chatMessages] = $this->splitSystem($messages);
+        [$system, $chatMessages] = $this->splitSystem($messages, $payload['response_schema'] ?? null);
 
         $maxTokens = (int) ($payload['max_tokens'] ?? 4096);
         $temperature = $this->clampTemperature($payload['temperature'] ?? null);
@@ -77,7 +77,8 @@ class ClaudeProvider extends AbstractProvider
         $messages = $payload['messages'] ?? [
             ['role' => 'user', 'content' => (string) ($payload['prompt'] ?? '')],
         ];
-        [$system, $chatMessages] = $this->splitSystem($messages);
+
+        [$system, $chatMessages] = $this->splitSystem($messages, $payload['response_schema'] ?? null);
 
         $maxTokens = (int) ($payload['max_tokens'] ?? 4096);
         $temperature = $this->clampTemperature($payload['temperature'] ?? null);
@@ -146,7 +147,7 @@ class ClaudeProvider extends AbstractProvider
         return max(0.0, min(1.0, (float) $temperature));
     }
 
-    protected function splitSystem(array $messages): array
+    protected function splitSystem(array $messages, ?array $schema = null): array
     {
         $system = '';
         $chat = [];
@@ -160,6 +161,12 @@ class ClaudeProvider extends AbstractProvider
                 'role' => ($message['role'] ?? 'user') === 'assistant' ? 'assistant' : 'user',
                 'content' => $this->mapContent($message['content'] ?? ''),
             ];
+        }
+
+        if ($schema !== null) {
+            $schemaJson = json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            $instruction = "You must output valid JSON strictly adhering to this JSON Schema without any explanation or markdown wraps:\n".$schemaJson;
+            $system = $system === '' ? $instruction : $system."\n\n".$instruction;
         }
 
         if ($chat === []) {

@@ -4,6 +4,32 @@ All notable changes to **Laravel AI Hub** are documented here.
 
 Packagist: [`imrandevbd/laravel-ai-hub`](https://packagist.org/packages/imrandevbd/laravel-ai-hub) · GitHub: [imranbru99/laravel-ai-hub](https://github.com/imranbru99/laravel-ai-hub)
 
+## [1.6.0] — 2026-09-08
+
+**Studio v1.6.0.** Testing assertion engine (`AIHub::fake()`), multi-turn conversational chat sessions (`AIHub::chat()`), Server-Sent Events (SSE) streaming (`streamResponse()` & `streamRaw()`), structured JSON schemas (`asJsonSchema()`, `structured()`), and rich request inspection getters.
+
+### Highlights
+
+- **`AIHub::fake()` Testing Assertion Engine**:
+  - Full mocking support with `AIHub::fake()` matching string responses, arrays, callbacks, or sequential response queues.
+  - Laravel-style assertions: `AIHub::assertSent()`, `AIHub::assertNotSent()`, `AIHub::assertSentCount()`, and `AIHub::assertNothingSent()`.
+  - Convenient factory helper `AIHub::response('content', 'provider', 'model')` to quickly build mock `AiResponse` objects.
+- **Multi-Turn Conversational Chat Sessions (`Conversation`)**:
+  - `AIHub::chat(?provider, ?model)` fluent conversational session management.
+  - Context retention across multi-turn exchanges with automatic token and cost accumulation across all turns.
+  - Methods: `send()`, `stream()`, `streamResponse()`, `system()`, `temperature()`, `maxTokens()`, `clear()`, `export()`, `load()`, `getMessages()`, `totalTokens()`, `totalCost()`.
+- **Server-Sent Events (SSE) Browser Streaming**:
+  - `streamResponse(?callable $onChunk = null, array $headers = [])`: returns a Symfony `StreamedResponse` formatted with standard `text/event-stream` SSE events (`data: {"chunk": "...", "done": false}` and `data: [DONE]`).
+  - `streamRaw(callable $onChunk)`: direct closure-driven consumption of streamed chunks.
+  - Safe buffer flushing that handles production web servers (Nginx/Apache fastcgi) and avoids terminal buffer pollution during automated tests.
+- **Structured Outputs & JSON Schemas**:
+  - `->asJsonSchema(array $schema, ?string $name = 'response', ?string $description = null)` and `AIHub::structured(array $schema)`: enforces strict schema outputs across OpenAI, Azure, Gemini, Claude, and OpenAI-compatible providers.
+  - Native provider payload mapping: Gemini `responseSchema` & `responseMimeType: application/json`, Claude system schema prompt injection, OpenAI `response_format.json_schema`.
+- **Request Inspection Getters**:
+  - Added fluent getters on `PendingRequest`: `getProvider()`, `getModel()`, `getPrompt()`, `getMessages()`, `getTemperature()`, `getMaxTokens()`, `getTools()`, `getToolChoice()`, `getImages()`, `getMeta()`, `getResponseSchema()`, `isRecoverJson()`, `isForceJsonObject()`, `hasJobTrace()`.
+- **Studio Dashboard**:
+  - Updated badge to `Studio v1.6.0`.
+
 ---
 
 ## [1.5.0] — 2026-09-07

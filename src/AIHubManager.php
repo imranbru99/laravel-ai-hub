@@ -148,6 +148,16 @@ class AIHubManager
         return $this->provider()->apiKey($apiKey);
     }
 
+    public function structured(array $schema, ?string $name = 'response'): PendingRequest
+    {
+        return $this->provider()->structured($schema, $name);
+    }
+
+    public function asJsonSchema(array $schema, ?string $name = 'response', ?string $description = null): PendingRequest
+    {
+        return $this->provider()->asJsonSchema($schema, $name, $description);
+    }
+
     public function configure(string $provider, ?string $apiKey = null, ?string $model = null, bool $makeDefault = true): array
     {
         $saved = app(SettingsStore::class)->setProvider($provider, $apiKey, $model, $makeDefault);
@@ -279,5 +289,53 @@ class AIHubManager
     public function capabilities(string $model): array
     {
         return \ImranDevBd\AiHub\Support\ModelCapabilities::describe($model);
+    }
+
+    /**
+     * Initiate a multi-turn chat session / conversation.
+     */
+    public function chat(?string $provider = null, ?string $model = null): \ImranDevBd\AiHub\Chat\Conversation
+    {
+        return new \ImranDevBd\AiHub\Chat\Conversation($this, $provider, $model);
+    }
+
+    /**
+     * Replace the bound manager instance with an AIHubFake instance for testing assertions.
+     *
+     * @param array<int|string, mixed>|\Closure|\ImranDevBd\AiHub\Data\AiResponse|string $responses
+     */
+    public static function fake(array|\Closure|\ImranDevBd\AiHub\Data\AiResponse|string $responses = []): \ImranDevBd\AiHub\Testing\AIHubFake
+    {
+        $fake = new \ImranDevBd\AiHub\Testing\AIHubFake($responses);
+        app()->instance(self::class, $fake);
+        app()->instance('ai-hub', $fake);
+
+        return $fake;
+    }
+
+    /**
+     * Factory helper to create a mocked AiResponse instance.
+     *
+     * @param array<string, mixed>|string $content
+     */
+    public static function response(array|string $content = '', string $provider = 'fake', string $model = 'fake-model', array $extra = []): \ImranDevBd\AiHub\Data\AiResponse
+    {
+        if (is_array($content)) {
+            $contentStr = json_encode($content, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        } else {
+            $contentStr = (string) $content;
+        }
+
+        return \ImranDevBd\AiHub\Data\AiResponse::fromArray(array_merge([
+            'content' => $contentStr,
+            'provider' => $provider,
+            'model' => $model,
+            'prompt_tokens' => 15,
+            'completion_tokens' => 25,
+            'total_tokens' => 40,
+            'cost_usd' => 0.00005,
+            'latency_ms' => 10.0,
+            'success' => true,
+        ], $extra));
     }
 }

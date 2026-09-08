@@ -123,7 +123,7 @@
                 <div class="flex items-center gap-2">
                     <h1 class="text-xl font-bold tracking-tight sm:text-2xl" :class="theme==='dark' ? 'text-white' : 'text-slate-900'">{{ $brand['name'] }}</h1>
                     <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-                          :class="theme==='dark' ? 'bg-white/10 text-accent-soft' : 'bg-slate-100 text-teal-700 border border-teal-200'">Studio v1.4.0</span>
+                          :class="theme==='dark' ? 'bg-white/10 text-accent-soft' : 'bg-slate-100 text-teal-700 border border-teal-200'">Studio v1.6.0</span>
                 </div>
                 <p class="text-xs" :class="theme==='dark' ? 'text-slate-400' : 'text-slate-500'">{{ $brand['tagline'] }}</p>
             </div>

@@ -1,6 +1,6 @@
 {
     "name": "imrandevbd/laravel-ai-hub",
-    "description": "Premium multi-provider Laravel AI SDK — Google Gemini 3.8, Claude 3.7 hybrid thinking, GPT-5.6/o3 reasoning, 13 providers, Studio playground, failover, cost tracking, JSON recovery, and Filament admin.",
+    "description": "Premium multi-provider Laravel AI SDK — AIHub::fake() testing engine, multi-turn chat sessions, SSE streaming, structured JSON schemas, Gemini 3.8, Claude 3.7 thinking, GPT-5.6/o3, 13 providers, Studio playground, failover, and cost tracking.",
     "type": "library",
     "license": "MIT",
     "keywords": [
